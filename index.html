@@ -21,6 +21,7 @@ canvas { display: block; margin: 0 auto; touch-action: none; -webkit-tap-highlig
 // ═══════════════════════════════════════════════════════════
 //  DEEP CAST — A Roguelike Fishing Game
 //  by Tony Stark (Jarvis Agent System)
+//  v2.0 — Weather, Seasons, Equipment, Boss Fish, Enhanced Codex
 // ═══════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('game');
@@ -75,25 +76,34 @@ const FISH_DATA = [
   { name: '송사리', rarity: 'common', minSize: 3, maxSize: 8, speed: 0.8, fight: 0.5, baseGold: 2 },
   { name: '잉어', rarity: 'common', minSize: 20, maxSize: 45, speed: 0.7, fight: 2, baseGold: 8 },
   { name: '피라미', rarity: 'common', minSize: 5, maxSize: 12, speed: 1.2, fight: 0.8, baseGold: 3 },
+  { name: '갈치', rarity: 'common', minSize: 60, maxSize: 120, speed: 1.1, fight: 1.5, baseGold: 6 },
   // Uncommon
   { name: '메기', rarity: 'uncommon', minSize: 30, maxSize: 70, speed: 0.6, fight: 3, baseGold: 15 },
   { name: '쏘가리', rarity: 'uncommon', minSize: 25, maxSize: 50, speed: 1.0, fight: 2.5, baseGold: 20 },
   { name: '농어', rarity: 'uncommon', minSize: 30, maxSize: 60, speed: 1.1, fight: 2, baseGold: 18 },
   { name: '뱀장어', rarity: 'uncommon', minSize: 40, maxSize: 80, speed: 1.3, fight: 3, baseGold: 22 },
+  { name: '해마', rarity: 'uncommon', minSize: 5, maxSize: 15, speed: 0.5, fight: 1, baseGold: 25 },
   // Rare
   { name: '연어', rarity: 'rare', minSize: 50, maxSize: 90, speed: 1.5, fight: 4, baseGold: 40 },
   { name: '황금붕어', rarity: 'rare', minSize: 15, maxSize: 30, speed: 1.0, fight: 2, baseGold: 50 },
   { name: '철갑상어', rarity: 'rare', minSize: 80, maxSize: 150, speed: 0.5, fight: 5, baseGold: 60 },
+  { name: '전기가오리', rarity: 'rare', minSize: 40, maxSize: 80, speed: 0.8, fight: 5, baseGold: 55 },
+  { name: '심해 유령상어', rarity: 'rare', minSize: 100, maxSize: 200, speed: 1.0, fight: 6, baseGold: 70 },
   // Epic
   { name: '대왕문어', rarity: 'epic', minSize: 100, maxSize: 200, speed: 0.8, fight: 7, baseGold: 120 },
   { name: '심해아귀', rarity: 'epic', minSize: 60, maxSize: 120, speed: 0.6, fight: 6, baseGold: 100 },
   { name: '황금잉어', rarity: 'epic', minSize: 40, maxSize: 80, speed: 0.9, fight: 4, baseGold: 150 },
+  { name: '만타가오리', rarity: 'epic', minSize: 200, maxSize: 450, speed: 0.7, fight: 5, baseGold: 130 },
+  { name: '고대 실러캔스', rarity: 'epic', minSize: 80, maxSize: 170, speed: 0.4, fight: 4, baseGold: 180 },
   // Legendary
   { name: '용왕의 비늘고기', rarity: 'legendary', minSize: 150, maxSize: 300, speed: 1.2, fight: 9, baseGold: 500 },
   { name: '백룡어', rarity: 'legendary', minSize: 200, maxSize: 400, speed: 1.0, fight: 10, baseGold: 600 },
+  { name: '인어의 눈물고기', rarity: 'legendary', minSize: 30, maxSize: 60, speed: 2.0, fight: 8, baseGold: 700 },
+  { name: '용궁 거북', rarity: 'legendary', minSize: 120, maxSize: 250, speed: 0.3, fight: 11, baseGold: 800 },
   // Mythic
   { name: '해신의 사자', rarity: 'mythic', minSize: 300, maxSize: 600, speed: 1.5, fight: 12, baseGold: 2000 },
   { name: '리바이어던의 새끼', rarity: 'mythic', minSize: 500, maxSize: 999, speed: 2.0, fight: 15, baseGold: 5000 },
+  { name: '크라켄의 촉수', rarity: 'mythic', minSize: 400, maxSize: 800, speed: 1.8, fight: 14, baseGold: 4000 },
 ];
 
 const LOCATIONS = [
@@ -117,6 +127,13 @@ const PERKS = [
   { id: 'combo_fisher', name: '연속 낚시꾼', desc: '연속 성공 시 점수 보너스', icon: '🔥', apply: s => { s.comboBonus += 0.15; }},
   { id: 'sonar', name: '어군탐지기', desc: '물고기 위치 표시', icon: '📡', apply: s => { s.hasSonar = true; }},
   { id: 'double_catch', name: '그물 보조', desc: '20% 확률로 2마리', icon: '🥅', apply: s => { s.doubleCatchChance += 0.2; }},
+  // New perks
+  { id: 'storm_rider', name: '폭풍 항해사', desc: '폭풍 시 피해 무효 + 희귀 +5%', icon: '⛈️', apply: s => { s.stormImmune = true; }},
+  { id: 'treasure_sense', name: '보물 감지', desc: '이벤트 발생 확률 2배', icon: '🔮', apply: s => { s.eventChance = 0.16; }},
+  { id: 'patience', name: '인내의 낚시꾼', desc: '미니게임 타이머 +40%', icon: '🧘', apply: s => { s.timerMulti = (s.timerMulti||1) * 1.4; }},
+  { id: 'critical_hook', name: '치명적 갈고리', desc: '25% 확률 진행도 2배', icon: '⚔️', apply: s => { s.critChance = (s.critChance||0) + 0.25; }},
+  { id: 'midas_touch', name: '미다스의 손', desc: '일반 물고기 골드 3배', icon: '👑', apply: s => { s.commonGoldMulti = 3; }},
+  { id: 'adrenaline', name: '아드레날린', desc: 'HP 30% 이하 시 릴속도 +60%', icon: '💉', apply: s => { s.hasAdrenaline = true; }},
 ];
 
 const EVENTS = [
@@ -127,12 +144,85 @@ const EVENTS = [
   { name: '⚡ 번개 폭풍', desc: '위험하지만 전설급 확률 UP', effect: s => { s.tempRarity = 0.2; s.tempDmg = 2; }, duration: 20 },
 ];
 
+// ─── WEATHER SYSTEM ───
+const WEATHER = {
+  clear:  { name: '맑음', icon: '☀️', rarityMod: 0, fightMod: 1.0, biteSpeedMod: 1.0, goldMod: 1.0, weight: 40 },
+  rain:   { name: '비', icon: '🌧️', rarityMod: 0.03, fightMod: 0.9, biteSpeedMod: 1.4, goldMod: 1.0, weight: 30 },
+  fog:    { name: '안개', icon: '🌫️', rarityMod: 0.08, fightMod: 1.1, biteSpeedMod: 0.7, goldMod: 1.3, weight: 20 },
+  storm:  { name: '폭풍', icon: '⛈️', rarityMod: 0.12, fightMod: 1.5, biteSpeedMod: 0.5, goldMod: 1.8, weight: 10 },
+};
+
+// ─── SEASON SYSTEM ───
+const SEASONS = {
+  spring: { name: '봄', icon: '🌸', rarityMod: 0.02, biteSpeedMod: 1.2, fightMod: 0.9, goldMod: 1.0 },
+  summer: { name: '여름', icon: '☀️', rarityMod: 0, biteSpeedMod: 1.0, fightMod: 1.0, goldMod: 1.3 },
+  autumn: { name: '가을', icon: '🍂', rarityMod: 0.05, biteSpeedMod: 0.9, fightMod: 1.1, goldMod: 1.1 },
+  winter: { name: '겨울', icon: '❄️', rarityMod: 0.08, biteSpeedMod: 0.6, fightMod: 1.4, goldMod: 1.5 },
+};
+const SEASON_KEYS = ['spring', 'summer', 'autumn', 'winter'];
+
+// ─── EQUIPMENT / SHOP SYSTEM ───
+const EQUIPMENT = {
+  rod: {
+    name: '낚싯대', icon: '🎣',
+    tiers: [
+      { name: '나무 낚싯대', cost: 0, lineMax: 0, hookPower: 0 },
+      { name: '대나무 낚싯대', cost: 80, lineMax: 20, hookPower: 0.1, reqLevel: 2 },
+      { name: '탄소섬유 낚싯대', cost: 300, lineMax: 50, hookPower: 0.25, reqLevel: 5 },
+      { name: '심해 낚싯대', cost: 800, lineMax: 80, hookPower: 0.4, reqLevel: 8 },
+    ]
+  },
+  reel: {
+    name: '릴', icon: '⚙️',
+    tiers: [
+      { name: '기본 릴', cost: 0, reelSpeed: 0 },
+      { name: '고속 릴', cost: 100, reelSpeed: 0.15, reqLevel: 2 },
+      { name: '전동 릴', cost: 350, reelSpeed: 0.35, reqLevel: 5 },
+      { name: '유압 릴', cost: 900, reelSpeed: 0.6, reqLevel: 9 },
+    ]
+  },
+  bait: {
+    name: '미끼', icon: '🪱',
+    tiers: [
+      { name: '지렁이', cost: 0, biteSpeed: 0, luckBonus: 0 },
+      { name: '떡밥', cost: 60, biteSpeed: 0.3, luckBonus: 0.02, reqLevel: 1 },
+      { name: '살아있는 새우', cost: 250, biteSpeed: 0.6, luckBonus: 0.05, reqLevel: 4 },
+      { name: '용의 비늘 미끼', cost: 700, biteSpeed: 1.0, luckBonus: 0.10, reqLevel: 7 },
+    ]
+  },
+};
+
+// ─── BOSS FISH SYSTEM ───
+const BOSS_CONFIG = {
+  spawnEvery: 15,
+  firstBossAt: 10,
+  hpMulti: 2.5,
+  sizeMulti: 1.8,
+  goldMulti: 4,
+  xpMulti: 3,
+  timerBonus: 8,
+  catchZonePenalty: 0.7,
+};
+
+const BOSS_FISH = [
+  { name: '심해 군주', rarity: 'rare', minSize: 120, maxSize: 250, speed: 1.8, fight: 8, baseGold: 100, isBoss: true },
+  { name: '폭풍의 제왕', rarity: 'epic', minSize: 200, maxSize: 400, speed: 1.5, fight: 12, baseGold: 250, isBoss: true },
+  { name: '용의 후예', rarity: 'legendary', minSize: 350, maxSize: 600, speed: 2.0, fight: 16, baseGold: 800, isBoss: true },
+  { name: '크라켄', rarity: 'mythic', minSize: 600, maxSize: 999, speed: 2.5, fight: 20, baseGold: 3000, isBoss: true },
+];
+
 // ─── GAME STATE ───
-let gameState = 'title'; // title, location_select, fishing, minigame, perk_select, game_over, shop
+let gameState = 'title'; // title, location_select, fishing, minigame, perk_select, game_over, shop, codex, inventory
 let run = null;
 let bestScore = parseInt(localStorage.getItem('deepcast_best') || '0');
 let totalRuns = parseInt(localStorage.getItem('deepcast_runs') || '0');
 let unlockedFish = JSON.parse(localStorage.getItem('deepcast_codex') || '[]');
+let codexFilter = '전체';
+
+// Weather particles
+let weatherParticles = [];
+let currentWeatherKey = 'clear';
+let stormFlashAlpha = 0;
 
 // ─── UTILITY ───
 function rand(min, max) { return Math.random() * (max - min) + min; }
@@ -141,6 +231,95 @@ function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function lerp(a, b, t) { return a + (b - a) * t; }
 function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+// ─── VIBRATION FEEDBACK ───
+function vibrate(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+// ─── WEATHER HELPERS ───
+function pickWeather() {
+  const entries = Object.entries(WEATHER);
+  const totalWeight = entries.reduce((s, [,w]) => s + w.weight, 0);
+  let roll = Math.random() * totalWeight;
+  for (const [key, data] of entries) {
+    roll -= data.weight;
+    if (roll <= 0) return key;
+  }
+  return 'clear';
+}
+
+function initWeatherParticles() {
+  weatherParticles = [];
+  if (currentWeatherKey === 'rain' || currentWeatherKey === 'storm') {
+    const count = isMobile ? 80 : 200;
+    for (let i = 0; i < count; i++) {
+      weatherParticles.push({
+        x: rand(0, canvas.width),
+        y: rand(-canvas.height, canvas.height),
+        speed: rand(8, 14),
+        length: rand(8, 18),
+      });
+    }
+  }
+}
+
+function updateWeatherParticles(dt) {
+  if (currentWeatherKey === 'rain' || currentWeatherKey === 'storm') {
+    for (const p of weatherParticles) {
+      p.x += 2 * 60 * dt;
+      p.y += p.speed * 60 * dt;
+      if (p.y > canvas.height) {
+        p.y = rand(-20, -5);
+        p.x = rand(0, canvas.width);
+      }
+      if (p.x > canvas.width) p.x = 0;
+    }
+  }
+  // Storm flash
+  if (currentWeatherKey === 'storm') {
+    if (Math.random() < 0.002) stormFlashAlpha = 0.3;
+    if (stormFlashAlpha > 0) stormFlashAlpha -= dt * 2;
+  } else {
+    stormFlashAlpha = 0;
+  }
+}
+
+function drawWeatherEffects(t) {
+  if (currentWeatherKey === 'rain' || currentWeatherKey === 'storm') {
+    ctx.strokeStyle = 'rgba(170,200,255,0.3)';
+    ctx.lineWidth = 1;
+    for (const p of weatherParticles) {
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(p.x + 2, p.y + p.length);
+      ctx.stroke();
+    }
+  }
+  if (currentWeatherKey === 'fog') {
+    for (let i = 0; i < 5; i++) {
+      const bandY = canvas.height * (0.2 + i * 0.15) + Math.sin(t * 0.3 + i * 1.5) * 30;
+      ctx.fillStyle = 'rgba(180,200,220,0.06)';
+      ctx.fillRect(0, bandY, canvas.width, 40 + i * 10);
+    }
+  }
+  if (stormFlashAlpha > 0) {
+    ctx.fillStyle = `rgba(255,255,240,${stormFlashAlpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// ─── SEASON HELPERS ───
+function getCurrentSeason() {
+  if (!run) return SEASONS.spring;
+  const idx = Math.floor(run.seasonCounter / 25) % 4;
+  return SEASONS[SEASON_KEYS[idx]];
+}
+function getCurrentSeasonKey() {
+  if (!run) return 'spring';
+  const idx = Math.floor(run.seasonCounter / 25) % 4;
+  return SEASON_KEYS[idx];
+}
 
 // ─── PARTICLES ───
 let particles = [];
@@ -349,7 +528,7 @@ function consumeClick() {
 function newRun() {
   run = {
     hp: 100, maxHp: 100,
-    gold: 0, score: 0, level: 1, xp: 0, xpToNext: 50,
+    gold: 0, score: 0, level: 1, xp: 0, xpToNext: 40,
     fishCaught: [], inventory: [], perks: [],
     lineMax: 100, line: 100, reelSpeed: 1, hookPower: 1,
     luckBonus: 0, biteSpeed: 1, castRange: 100,
@@ -358,9 +537,23 @@ function newRun() {
     location: null, depth: 0, turn: 0, fishCount: 0,
     tempFight: 1, tempRarity: 0, tempGold: 1, tempBiteSpeed: 1, tempDmg: 1,
     activeEvent: null, eventTimer: 0,
+    eventChance: 0.10,
+    // New stats
+    stormImmune: false,
+    timerMulti: 1,
+    critChance: 0,
+    commonGoldMulti: 1,
+    hasAdrenaline: false,
+    // Season
+    seasonCounter: 0,
+    // Equipment
+    equipTier: { rod: 0, reel: 0, bait: 0 },
+    // Boss tracking
+    bossActive: false,
     // minigame state
     mg: null,
   };
+  currentWeatherKey = 'clear';
   totalRuns++;
   localStorage.setItem('deepcast_runs', totalRuns);
   gameState = 'location_select';
@@ -368,7 +561,9 @@ function newRun() {
 
 // ─── GENERATE FISH FOR CATCH ───
 function generateFish(location) {
-  const rarityBonus = location.rarityBonus + run.luckBonus + run.tempRarity;
+  const weather = WEATHER[currentWeatherKey];
+  const season = getCurrentSeason();
+  const rarityBonus = location.rarityBonus + run.luckBonus + run.tempRarity + weather.rarityMod + season.rarityMod;
 
   let roll = Math.random();
   let selectedRarity = 'common';
@@ -387,38 +582,74 @@ function generateFish(location) {
   const size = randInt(template.minSize, template.maxSize);
   const sizeMulti = size / template.minSize;
 
+  const goldValue = Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti * run.goldMulti * run.tempGold * weather.goldMod * season.goldMod * (selectedRarity === 'common' ? run.commonGoldMulti : 1));
+
   return {
     ...template,
     size,
-    actualFight: template.fight * sizeMulti * run.tempFight * (1 + location.depth * 0.15),
-    goldValue: Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti * run.goldMulti * run.tempGold),
+    actualFight: template.fight * sizeMulti * run.tempFight * weather.fightMod * season.fightMod * (1 + location.depth * 0.15),
+    goldValue,
     scoreValue: Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti),
     rarityData: RARITY[template.rarity],
   };
 }
 
+// ─── BOSS FISH GENERATION ───
+function generateBossFish(location) {
+  let bossIdx = 0;
+  if (location.depth <= 2) bossIdx = 0;
+  else if (location.depth === 3) bossIdx = 1;
+  else if (location.depth === 4) bossIdx = 2;
+  else bossIdx = 3;
+
+  const template = BOSS_FISH[bossIdx];
+  const size = randInt(Math.floor(template.minSize * BOSS_CONFIG.sizeMulti), Math.floor(template.maxSize * BOSS_CONFIG.sizeMulti));
+  const sizeMulti = size / template.minSize;
+  const weather = WEATHER[currentWeatherKey];
+  const season = getCurrentSeason();
+
+  return {
+    ...template,
+    size,
+    isBoss: true,
+    actualFight: template.fight * sizeMulti * run.tempFight * weather.fightMod * season.fightMod * (1 + location.depth * 0.15) * BOSS_CONFIG.hpMulti,
+    goldValue: Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti * run.goldMulti * run.tempGold * weather.goldMod * season.goldMod * BOSS_CONFIG.goldMulti),
+    scoreValue: Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti * BOSS_CONFIG.xpMulti),
+    rarityData: RARITY[template.rarity],
+  };
+}
+
+function shouldSpawnBoss() {
+  if (run.fishCount < BOSS_CONFIG.firstBossAt) return false;
+  return run.fishCount % BOSS_CONFIG.spawnEvery === 0;
+}
+
 // ─── MINIGAME ───
 function startMinigame(fish) {
   const difficulty = fish.actualFight;
+  const isBoss = !!fish.isBoss;
+  const czSize = clamp(120 - difficulty * 6, 35, 120) * (isBoss ? BOSS_CONFIG.catchZonePenalty : 1);
+  const timer = (15 + fish.size * 0.02 + (isBoss ? BOSS_CONFIG.timerBonus : 0)) * (run.timerMulti || 1);
   run.mg = {
     fish,
+    isBoss,
     // Reel bar: player must keep marker in catch zone
     barHeight: 300,
-    catchZoneSize: clamp(120 - difficulty * 6, 30, 120),
+    catchZoneSize: czSize,
     catchZoneY: 100,
     catchZoneVel: (1.5 + difficulty * 0.3) * (Math.random() > 0.5 ? 1 : -1),
     markerY: 150,
     markerVel: 0,
     // Progress
     progress: 0, // 0-100, reach 100 to catch
-    progressDecay: 0.3 + difficulty * 0.05,
-    progressGain: 0.8,
+    progressDecay: 0.25 + difficulty * 0.04,
+    progressGain: 0.9,
     // Line tension
     tension: 0,
     maxTension: run.lineMax,
     // Timer
-    timer: 15 + fish.size * 0.02,
-    maxTimer: 15 + fish.size * 0.02,
+    timer: timer,
+    maxTimer: timer,
     // Result
     result: null, // 'caught' or 'escaped' or 'broken'
     resultTimer: 0,
@@ -427,6 +658,8 @@ function startMinigame(fish) {
     fishY: canvas.height / 2 + rand(-30, 30),
     splashTimer: 0,
   };
+  run.bossActive = isBoss;
+  if (isBoss) vibrate([200,50,200]);
   gameState = 'minigame';
 }
 
@@ -435,9 +668,10 @@ function checkLevelUp() {
   if (run.xp >= run.xpToNext) {
     run.xp -= run.xpToNext;
     run.level++;
-    run.xpToNext = Math.floor(run.xpToNext * 1.4);
-    run.maxHp += 5;
-    run.hp = Math.min(run.hp + 15, run.maxHp);
+    run.xpToNext = Math.floor(run.xpToNext * 1.35);
+    run.maxHp += 7;
+    run.hp = Math.min(run.hp + 20, run.maxHp);
+    vibrate([40,40,40,40,120]);
     // offer perk selection
     offerPerks();
     return true;
@@ -464,12 +698,27 @@ function selectPerk(perk) {
 // ─── RANDOM EVENT ───
 function checkRandomEvent() {
   if (run.activeEvent) return;
-  if (Math.random() < 0.08) {
+  if (Math.random() < (run.eventChance || 0.10)) {
     const event = pick(EVENTS);
     run.activeEvent = event;
     run.eventTimer = event.duration;
     event.effect(run);
   }
+}
+
+// ─── EQUIPMENT HELPERS ───
+function getEquipBonus(slot) {
+  if (!run) return {};
+  const tier = run.equipTier[slot];
+  return EQUIPMENT[slot].tiers[tier];
+}
+function applyEquipmentStats() {
+  // Equipment stats are additive on base stats
+  const rod = getEquipBonus('rod');
+  const reel = getEquipBonus('reel');
+  const bait = getEquipBonus('bait');
+  // These are applied freshly each time equipment is upgraded
+  // We store base values separately or apply as additive bonuses
 }
 
 // ─── SCENE: TITLE ───
@@ -527,14 +776,33 @@ function drawTitle(t) {
   drawButtons(t);
 }
 
-// ─── SCENE: CODEX ───
+// ─── SCENE: CODEX (Enhanced Card Grid) ───
 let codexScroll = 0;
 function updateCodex(dt) {
   clearButtons();
   addButton('back', 30, 30, 100, 36, '← 돌아가기', { color: '#2d3436' });
+
+  // Rarity filter tabs
+  const filterNames = ['전체', '일반', '고급', '희귀', '영웅', '전설', '신화'];
+  const tabW = isMobile ? 48 : 58;
+  const tabH = 28;
+  const tabStartX = isMobile ? 10 : canvas.width / 2 - (filterNames.length * (tabW + 5)) / 2;
+  const tabY = 75;
+  for (let i = 0; i < filterNames.length; i++) {
+    const isActive = codexFilter === filterNames[i];
+    addButton('filter_' + i, tabStartX + i * (tabW + 5), tabY, tabW, tabH, filterNames[i], {
+      fontSize: isMobile ? 10 : 11,
+      color: isActive ? COLORS.accent : '#333',
+    });
+  }
+
   const clicked = consumeClick();
-  if (clicked === 'back') { gameState = 'title'; codexScroll = 0; }
-  if (keys['Escape']) { gameState = 'title'; codexScroll = 0; keys['Escape'] = false; }
+  if (clicked === 'back') { gameState = run ? 'fishing' : 'title'; codexScroll = 0; codexFilter = '전체'; }
+  if (clicked && clicked.startsWith('filter_')) {
+    const idx = parseInt(clicked.split('_')[1]);
+    codexFilter = filterNames[idx];
+  }
+  if (keys['Escape']) { gameState = run ? 'fishing' : 'title'; codexScroll = 0; codexFilter = '전체'; keys['Escape'] = false; }
 }
 
 function drawCodex(t) {
@@ -542,26 +810,75 @@ function drawCodex(t) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   drawText('📖 물고기 도감', canvas.width / 2, 40, { size: 28, align: 'center', color: COLORS.accentLight, font: 'bold' });
 
-  const startX = 60;
-  let y = 90;
-  const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
-  for (const rKey of rarityOrder) {
-    const fishOfRarity = FISH_DATA.filter(f => f.rarity === rKey);
-    const rData = RARITY[rKey];
-    drawText(`── ${rData.name} ──`, startX, y, { size: 16, color: rData.color, font: 'bold' });
-    y += 28;
-    for (const fish of fishOfRarity) {
-      const caught = unlockedFish.includes(fish.name);
-      const name = caught ? fish.name : '???';
-      const color = caught ? rData.color : '#333';
-      drawText(`🐟 ${name}`, startX + 20, y, { size: 14, color });
-      if (caught) {
-        drawText(`${fish.minSize}-${fish.maxSize}cm | 💰${fish.baseGold}`, startX + 200, y, { size: 12, color: COLORS.uiTextDim });
-      }
-      y += 24;
+  // Progress bar
+  const caughtCount = unlockedFish.length;
+  const totalCount = FISH_DATA.length;
+  const progW = isMobile ? canvas.width - 40 : 400;
+  const progX = canvas.width / 2 - progW / 2;
+  drawBar(progX, 58, progW, 14, caughtCount, totalCount, COLORS.accent, COLORS.uiBorder, `${caughtCount}/${totalCount} 수집 완료`);
+
+  // Filter
+  const rarityKeyMap = { '전체': null, '일반': 'common', '고급': 'uncommon', '희귀': 'rare', '영웅': 'epic', '전설': 'legendary', '신화': 'mythic' };
+  const filterKey = rarityKeyMap[codexFilter];
+  const filteredFish = filterKey ? FISH_DATA.filter(f => f.rarity === filterKey) : FISH_DATA;
+
+  // Card grid
+  const cols = isMobile ? 2 : 3;
+  const cardW = isMobile ? (canvas.width - 30) / 2 - 5 : 180;
+  const cardH = isMobile ? 90 : 110;
+  const gap = 10;
+  const gridStartX = isMobile ? 15 : canvas.width / 2 - (cols * (cardW + gap) - gap) / 2;
+  const gridStartY = 115;
+
+  for (let i = 0; i < filteredFish.length; i++) {
+    const fish = filteredFish[i];
+    const caught = unlockedFish.includes(fish.name);
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx = gridStartX + col * (cardW + gap);
+    const cy = gridStartY + row * (cardH + gap);
+
+    if (cy > canvas.height + 50) break; // off screen
+    if (cy + cardH < 0) continue;
+
+    const rData = RARITY[fish.rarity];
+    const borderColor = caught ? rData.color : '#222';
+    const fillColor = caught ? 'rgba(26,26,46,0.95)' : 'rgba(15,15,25,0.95)';
+
+    // Card
+    drawPanel(cx, cy, cardW, cardH, { fill: fillColor, border: borderColor, radius: 6 });
+
+    // Fish silhouette
+    const fishCX = cx + cardW * 0.25;
+    const fishCY = cy + cardH * 0.45;
+    const fishSz = isMobile ? 16 : 22;
+    ctx.globalAlpha = caught ? 0.7 : 0.15;
+    ctx.fillStyle = caught ? rData.color : '#444';
+    ctx.beginPath();
+    ctx.ellipse(fishCX, fishCY, fishSz, fishSz * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // tail
+    ctx.beginPath();
+    ctx.moveTo(fishCX - fishSz, fishCY);
+    ctx.lineTo(fishCX - fishSz - fishSz * 0.4, fishCY - fishSz * 0.3);
+    ctx.lineTo(fishCX - fishSz - fishSz * 0.4, fishCY + fishSz * 0.3);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Name
+    const name = caught ? fish.name : '???';
+    drawText(name, cx + cardW * 0.55, cy + 12, { size: isMobile ? 11 : 13, color: caught ? '#fff' : '#444', font: 'bold' });
+
+    // Rarity tag
+    drawText(rData.name, cx + cardW * 0.55, cy + (isMobile ? 28 : 30), { size: isMobile ? 9 : 10, color: caught ? rData.color : '#333' });
+
+    // Size range
+    if (caught) {
+      drawText(`${fish.minSize}-${fish.maxSize}cm`, cx + cardW * 0.55, cy + (isMobile ? 42 : 48), { size: isMobile ? 9 : 10, color: COLORS.uiTextDim });
+      drawText(`💰 ${fish.baseGold}`, cx + cardW * 0.55, cy + (isMobile ? 56 : 64), { size: isMobile ? 9 : 10, color: COLORS.gold });
     }
-    y += 10;
   }
+
   drawButtons(t);
 }
 
@@ -589,6 +906,9 @@ function updateLocationSelect(dt) {
     const idx = parseInt(clicked.split('_')[1]);
     run.location = LOCATIONS[idx];
     run.depth = LOCATIONS[idx].depth;
+    // Change weather when changing location
+    currentWeatherKey = pickWeather();
+    initWeatherParticles();
     gameState = 'fishing';
   }
 }
@@ -598,9 +918,102 @@ function drawLocationSelect(t) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   drawStars(t);
 
+  const season = getCurrentSeason();
   drawText('🗺️ 낚시터 선택', canvas.width / 2, 50, { size: 32, align: 'center', color: COLORS.accentLight, font: 'bold' });
-  drawText(`레벨 ${run.level} | HP ${run.hp}/${run.maxHp} | 💰 ${run.gold}`, canvas.width / 2, 100, { size: 16, align: 'center', color: COLORS.uiTextDim });
+  drawText(`레벨 ${run.level} | HP ${run.hp}/${run.maxHp} | 💰 ${run.gold} | ${season.icon} ${season.name}`, canvas.width / 2, 100, { size: 16, align: 'center', color: COLORS.uiTextDim });
   drawText(`📊 점수: ${run.score.toLocaleString()}`, canvas.width / 2, 125, { size: 14, align: 'center', color: COLORS.gold });
+
+  drawButtons(t);
+}
+
+// ─── SCENE: SHOP ───
+let shopScroll = 0;
+function updateShop(dt) {
+  clearButtons();
+  addButton('shop_back', 30, 30, 120, 36, '← 돌아가기', { color: '#2d3436' });
+
+  const cx = canvas.width / 2;
+  const slotW = isMobile ? Math.min(300, canvas.width - 40) : 360;
+  const slotH = 80;
+  const startY = 110;
+  const slots = ['rod', 'reel', 'bait'];
+
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    const equip = EQUIPMENT[slot];
+    const currentTier = run.equipTier[slot];
+    const currentItem = equip.tiers[currentTier];
+    const nextTier = currentTier + 1;
+    const hasNext = nextTier < equip.tiers.length;
+
+    if (hasNext) {
+      const nextItem = equip.tiers[nextTier];
+      const canAfford = run.gold >= nextItem.cost;
+      const meetsLevel = !nextItem.reqLevel || run.level >= nextItem.reqLevel;
+      const canBuy = canAfford && meetsLevel;
+      let subText = `💰 ${nextItem.cost}G`;
+      if (!meetsLevel) subText += ` | Lv.${nextItem.reqLevel} 필요`;
+      addButton('buy_' + slot, cx - slotW / 2, startY + i * (slotH + 15), slotW, slotH,
+        `${equip.icon} ${currentItem.name} → ${nextItem.name}`, {
+        sub: subText,
+        disabled: !canBuy,
+        fontSize: isMobile ? 13 : 14,
+        color: canBuy ? '#27ae60' : '#555',
+      });
+    } else {
+      addButton('max_' + slot, cx - slotW / 2, startY + i * (slotH + 15), slotW, slotH,
+        `${equip.icon} ${currentItem.name} (MAX)`, {
+        sub: '최고 등급',
+        disabled: true,
+        fontSize: isMobile ? 13 : 14,
+        color: '#555',
+      });
+    }
+  }
+
+  const clicked = consumeClick();
+  if (clicked === 'shop_back') { gameState = 'fishing'; }
+  if (clicked && clicked.startsWith('buy_')) {
+    const slot = clicked.split('_')[1];
+    const equip = EQUIPMENT[slot];
+    const nextTier = run.equipTier[slot] + 1;
+    if (nextTier < equip.tiers.length) {
+      const nextItem = equip.tiers[nextTier];
+      if (run.gold >= nextItem.cost && (!nextItem.reqLevel || run.level >= nextItem.reqLevel)) {
+        run.gold -= nextItem.cost;
+        run.equipTier[slot] = nextTier;
+        // Apply stat bonuses additively
+        if (slot === 'rod') {
+          run.lineMax += nextItem.lineMax;
+          run.line = run.lineMax;
+          run.hookPower += nextItem.hookPower;
+        } else if (slot === 'reel') {
+          run.reelSpeed += nextItem.reelSpeed;
+        } else if (slot === 'bait') {
+          run.biteSpeed += nextItem.biteSpeed;
+          run.luckBonus += nextItem.luckBonus;
+        }
+      }
+    }
+  }
+  if (keys['Escape']) { gameState = 'fishing'; keys['Escape'] = false; }
+}
+
+function drawShop(t) {
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawText('🛒 장비 상점', canvas.width / 2, 40, { size: 28, align: 'center', color: COLORS.accentLight, font: 'bold' });
+  drawText(`💰 보유 골드: ${run.gold.toLocaleString()} | Lv.${run.level}`, canvas.width / 2, 72, { size: 14, align: 'center', color: COLORS.gold });
+
+  // Current equipment info
+  const infoY = isMobile ? canvas.height - 120 : canvas.height - 140;
+  const infoW = isMobile ? canvas.width - 40 : 360;
+  drawPanel(canvas.width / 2 - infoW / 2, infoY, infoW, 100);
+  drawText('현재 장비 효과', canvas.width / 2, infoY + 10, { size: 13, align: 'center', color: COLORS.accentLight, font: 'bold' });
+  drawText(`줄 내구도: ${Math.floor(run.lineMax)} | 훅 파워: ${run.hookPower.toFixed(2)}`, canvas.width / 2, infoY + 32, { size: 12, align: 'center', color: COLORS.uiText });
+  drawText(`릴 속도: ${run.reelSpeed.toFixed(2)}x | 입질 속도: ${run.biteSpeed.toFixed(2)}x`, canvas.width / 2, infoY + 52, { size: 12, align: 'center', color: COLORS.uiText });
+  drawText(`행운 보너스: +${(run.luckBonus * 100).toFixed(0)}%`, canvas.width / 2, infoY + 72, { size: 12, align: 'center', color: COLORS.uiText });
 
   drawButtons(t);
 }
@@ -663,19 +1076,31 @@ function updateFishing(dt, t) {
   // Catch message
   if (catchMessageTimer > 0) catchMessageTimer -= dt;
 
+  // Weather particles
+  updateWeatherParticles(dt);
+
   const cx = canvas.width / 2;
   const waterY = canvas.height * 0.50;
+  const weather = WEATHER[currentWeatherKey];
+  const season = getCurrentSeason();
 
   switch (fishingState) {
     case 'idle': {
       const btnH = isMobile ? 54 : 45;
       const btnY = canvas.height - (isMobile ? 100 : 80);
-      const castW = isMobile ? 180 : 160;
-      const sideW = isMobile ? 80 : 100;
-      const gap = isMobile ? 10 : 20;
-      addButton('cast', cx - castW / 2, btnY, castW, btnH, '🎣 캐스팅!', { fontSize: isMobile ? 20 : 18 });
-      addButton('map', cx - castW / 2 - sideW - gap, btnY, sideW, btnH, '🗺️', { color: '#2d3436' });
-      addButton('inv', cx + castW / 2 + gap, btnY, sideW, btnH, '🎒', { color: '#2d3436' });
+      const castW = isMobile ? 140 : 130;
+      const sideW = isMobile ? 52 : 56;
+      const gap = isMobile ? 6 : 10;
+
+      // Layout: map | shop | CAST | inv
+      const totalBtnsW = castW + sideW * 3 + gap * 3;
+      const startX = cx - totalBtnsW / 2;
+
+      addButton('map', startX, btnY, sideW, btnH, '🗺️', { color: '#2d3436' });
+      addButton('shop', startX + sideW + gap, btnY, sideW, btnH, '🛒', { color: '#2d3436' });
+      addButton('cast', startX + sideW * 2 + gap * 2, btnY, castW, btnH, '🎣 캐스팅!', { fontSize: isMobile ? 18 : 16 });
+      addButton('inv', startX + sideW * 2 + castW + gap * 3, btnY, sideW, btnH, '🎒', { color: '#2d3436' });
+
       const clicked = consumeClick();
       if (clicked === 'cast') {
         fishingState = 'casting';
@@ -684,7 +1109,11 @@ function updateFishing(dt, t) {
         bobberY = waterY + rand(30, 150);
         checkRandomEvent();
       }
-      if (clicked === 'map') { gameState = 'location_select'; resetFishing(); }
+      if (clicked === 'map') {
+        gameState = 'location_select';
+        resetFishing();
+      }
+      if (clicked === 'shop') gameState = 'shop';
       if (clicked === 'inv') gameState = 'inventory';
       break;
     }
@@ -693,7 +1122,8 @@ function updateFishing(dt, t) {
       castAnim += dt * 3;
       if (castAnim >= 1) {
         fishingState = 'waiting';
-        waitTimer = rand(1, 4) / run.biteSpeed / run.tempBiteSpeed;
+        const biteSpeedTotal = run.biteSpeed * run.tempBiteSpeed * weather.biteSpeedMod * season.biteSpeedMod;
+        waitTimer = rand(1, 4) / Math.max(0.1, biteSpeedTotal);
         spawnParticles(bobberX, bobberY, '#4a90d9', 8, 15);
       }
       break;
@@ -703,8 +1133,14 @@ function updateFishing(dt, t) {
       if (waitTimer <= 0) {
         fishingState = 'bite';
         biteTimer = 1.5;
-        currentFish = generateFish(run.location);
+        // Check boss spawn
+        if (shouldSpawnBoss()) {
+          currentFish = generateBossFish(run.location);
+        } else {
+          currentFish = generateFish(run.location);
+        }
         spawnParticles(bobberX, bobberY, RARITY[currentFish.rarity].color, 12, 20);
+        vibrate([50]);
       }
       break;
 
@@ -829,10 +1265,16 @@ function drawFishing(t) {
 
   drawParticles();
 
+  // Weather effects on top
+  drawWeatherEffects(t);
+
   // HUD
-  const hudW = isMobile ? Math.min(200, canvas.width - 20) : 220;
+  const weather = WEATHER[currentWeatherKey];
+  const season = getCurrentSeason();
+  const hudW = isMobile ? Math.min(210, canvas.width - 20) : 230;
   const hudFs = isMobile ? 11 : 13;
-  drawPanel(10, 10, hudW, isMobile ? 110 : 125);
+  const hudH = isMobile ? 130 : 145;
+  drawPanel(10, 10, hudW, hudH);
   drawText(`📍 ${run.location.name}`, 18, 16, { size: isMobile ? 13 : 15, color: COLORS.accentLight, font: 'bold' });
   drawText(`Lv.${run.level}`, 18, 36, { size: hudFs, color: COLORS.uiText });
   drawBar(50, 36, hudW - 60, 13, run.xp, run.xpToNext, COLORS.xp, COLORS.xpBg, `${run.xp}/${run.xpToNext}`);
@@ -842,6 +1284,9 @@ function drawFishing(t) {
   drawText(`📊 ${run.score.toLocaleString()}`, 18 + hudW / 2, 76, { size: hudFs, color: COLORS.uiTextDim });
   if (run.combo > 1) drawText(`🔥 x${run.combo}`, 18, 94, { size: hudFs, color: '#e67e22' });
   drawText(`🐟 ${run.fishCount}`, 18 + hudW / 2, 94, { size: hudFs, color: COLORS.uiTextDim });
+  // Weather + Season display
+  drawText(`${weather.icon} ${weather.name}`, 18, 112, { size: hudFs, color: COLORS.uiTextDim });
+  drawText(`${season.icon} ${season.name}`, 18 + hudW / 2, 112, { size: hudFs, color: COLORS.uiTextDim });
 
   // Active event
   if (run.activeEvent) {
@@ -875,12 +1320,19 @@ function updateMinigame(dt, t) {
         // Register catch
         const fish = mg.fish;
         run.fishCount++;
+        run.seasonCounter++;
         run.gold += fish.goldValue;
         run.score += Math.floor(fish.scoreValue * (1 + run.combo * run.comboBonus));
-        run.xp += Math.floor(5 + fish.actualFight * 3);
+        run.xp += Math.floor(5 + fish.actualFight * 3) * (fish.isBoss ? BOSS_CONFIG.xpMulti : 1);
         run.combo++;
         run.hp = Math.min(run.maxHp, run.hp + run.healOnCatch);
-        run.fishCaught.push({ name: fish.name, rarity: fish.rarity, size: fish.size, gold: fish.goldValue });
+        run.fishCaught.push({ name: fish.name, rarity: fish.rarity, size: fish.size, gold: fish.goldValue, isBoss: !!fish.isBoss });
+
+        // Vibration based on rarity
+        const r = fish.rarity;
+        if (r === 'legendary' || r === 'mythic') vibrate([60,30,80,30,120,30,200]);
+        else if (r === 'rare' || r === 'epic') vibrate([50,30,80]);
+        else vibrate([80]);
 
         // Codex
         if (!unlockedFish.includes(fish.name)) {
@@ -894,7 +1346,8 @@ function updateMinigame(dt, t) {
           run.score += Math.floor(fish.scoreValue * 0.5);
           catchMessage = '🥅 더블 캐치! 보너스 획득!';
         } else {
-          catchMessage = `✅ ${fish.rarityData.name} ${fish.name} (${fish.size}cm) 획득! +${fish.goldValue}G`;
+          const bossTag = fish.isBoss ? '👹 BOSS ' : '';
+          catchMessage = `✅ ${bossTag}${fish.rarityData.name} ${fish.name} (${fish.size}cm) 획득! +${fish.goldValue}G`;
         }
         catchMessageTimer = 3;
 
@@ -902,10 +1355,16 @@ function updateMinigame(dt, t) {
       } else {
         // escaped or broken
         run.combo = 0;
-        const dmg = mg.fish.actualFight * 3 * run.tempDmg * (1 - run.damageReduce);
-        run.hp -= dmg;
-        catchMessage = mg.result === 'broken' ? `💥 줄이 끊어졌다! -${Math.ceil(dmg)} HP` : `🐟 놓쳤다... -${Math.ceil(dmg)} HP`;
+        const stormDmgMod = (currentWeatherKey === 'storm' && run.stormImmune) ? 0 : 1;
+        const dmg = mg.fish.actualFight * 3 * run.tempDmg * (1 - run.damageReduce) * stormDmgMod;
+        if (mg.result === 'broken') {
+          vibrate([300]);
+          catchMessage = `💥 줄이 끊어졌다! -${Math.ceil(dmg)} HP`;
+        } else {
+          catchMessage = `🐟 놓쳤다... -${Math.ceil(dmg)} HP`;
+        }
         catchMessageTimer = 2.5;
+        run.hp -= dmg;
 
         if (run.hp <= 0) {
           run.hp = 0;
@@ -915,6 +1374,7 @@ function updateMinigame(dt, t) {
         }
       }
       run.mg = null;
+      run.bossActive = false;
       generateFishShadows();
     }
     return;
@@ -939,9 +1399,15 @@ function updateMinigame(dt, t) {
   if (Math.random() < 0.01) mg.catchZoneVel += rand(-1, 1);
   mg.catchZoneVel = clamp(mg.catchZoneVel, -5, 5);
 
+  // Adrenaline check
+  let reelSpeedMod = 1;
+  if (run.hasAdrenaline && run.hp / run.maxHp <= 0.3) {
+    reelSpeedMod = 1.6;
+  }
+
   // Marker (player control)
   if (mouse.down || keys['Space']) {
-    mg.markerVel -= (8 + run.reelSpeed * 2) * dt * 60;
+    mg.markerVel -= (8 + run.reelSpeed * reelSpeedMod * 2) * dt * 60;
   }
   mg.markerVel += 5 * dt * 60; // gravity
   mg.markerVel *= 0.92; // damping
@@ -951,7 +1417,12 @@ function updateMinigame(dt, t) {
   // Check if marker is in catch zone
   const inZone = mg.markerY >= mg.catchZoneY && mg.markerY <= mg.catchZoneY + mg.catchZoneSize;
   if (inZone) {
-    mg.progress += mg.progressGain * run.hookPower * dt * 60;
+    let gain = mg.progressGain * run.hookPower * dt * 60;
+    // Critical hook check
+    if (run.critChance > 0 && Math.random() < run.critChance * dt * 2) {
+      gain *= 2;
+    }
+    mg.progress += gain;
     mg.tension = Math.max(0, mg.tension - 0.3 * dt * 60);
   } else {
     mg.progress -= mg.progressDecay * dt * 60;
@@ -988,14 +1459,27 @@ function drawMinigame(t) {
   ctx.fillStyle = 'rgba(5, 5, 20, 0.85)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // Boss red vignette
+  if (mg.isBoss) {
+    const vigGrad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height * 0.2, canvas.width/2, canvas.height/2, canvas.height * 0.8);
+    vigGrad.addColorStop(0, 'rgba(200,0,0,0)');
+    vigGrad.addColorStop(1, `rgba(200,0,0,${0.15 + Math.sin(t * 3) * 0.05})`);
+    ctx.fillStyle = vigGrad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
 
   // Fish info panel
   const infoPanelW = isMobile ? Math.min(320, canvas.width - 40) : 400;
-  drawPanel(cx - infoPanelW / 2, 30, infoPanelW, 50);
-  drawText(`${mg.fish.rarityData.name} ${mg.fish.name}`, cx, 42, { size: isMobile ? 15 : 18, align: 'center', color: mg.fish.rarityData.color, font: 'bold' });
+  drawPanel(cx - infoPanelW / 2, 30, infoPanelW, mg.isBoss ? 65 : 50);
+  const bossLabel = mg.isBoss ? '⚠️ BOSS ' : '';
+  drawText(`${bossLabel}${mg.fish.rarityData.name} ${mg.fish.name}`, cx, 42, { size: isMobile ? 15 : 18, align: 'center', color: mg.isBoss ? '#e74c3c' : mg.fish.rarityData.color, font: 'bold' });
   drawText(`${mg.fish.size}cm | 전투력: ${mg.fish.actualFight.toFixed(1)}`, cx, 62, { size: isMobile ? 11 : 12, align: 'center', color: COLORS.uiTextDim });
+  if (mg.isBoss) {
+    drawText('보스 물고기!', cx, 80, { size: isMobile ? 10 : 11, align: 'center', color: '#e74c3c' });
+  }
 
   // Reel bar (left side)
   const barX = isMobile ? 20 : cx - 180;
@@ -1039,13 +1523,13 @@ function drawMinigame(t) {
 
   // Timer
   const timeColor = mg.timer < 5 ? '#e74c3c' : COLORS.uiText;
-  drawText(`⏱️ ${mg.timer.toFixed(1)}s`, isMobile ? cx : cx + 100, isMobile ? 90 : cy - 150, { size: isMobile ? 18 : 16, color: timeColor, align: isMobile ? 'center' : 'left' });
+  drawText(`⏱️ ${mg.timer.toFixed(1)}s`, isMobile ? cx : cx + 100, isMobile ? (mg.isBoss ? 100 : 90) : cy - 150, { size: isMobile ? 18 : 16, color: timeColor, align: isMobile ? 'center' : 'left' });
 
   // Fish visual (right side on desktop, center on mobile)
   const fishVizX = isMobile ? cx : cx + 60;
   const fishVizY = isMobile ? cy - 20 : cy - 30;
   const fishPanelSize = isMobile ? 140 : 200;
-  drawPanel(fishVizX - fishPanelSize / 2, fishVizY - fishPanelSize / 2, fishPanelSize, fishPanelSize, { fill: run.location.waterColor, border: mg.fish.rarityData.color });
+  drawPanel(fishVizX - fishPanelSize / 2, fishVizY - fishPanelSize / 2, fishPanelSize, fishPanelSize, { fill: run.location.waterColor, border: mg.isBoss ? '#e74c3c' : mg.fish.rarityData.color });
 
   // Animated fish
   const fishBounce = Math.sin(t * 4) * 10;
@@ -1073,6 +1557,22 @@ function drawMinigame(t) {
   ctx.fill();
   ctx.globalAlpha = 1;
 
+  // Boss glow effect
+  if (mg.isBoss) {
+    ctx.globalAlpha = 0.2 + Math.sin(t * 5) * 0.1;
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(fishVizX, fishVizY + fishBounce, fishSize + 10, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // Adrenaline indicator
+  if (run.hasAdrenaline && run.hp / run.maxHp <= 0.3) {
+    drawText('💉 아드레날린 활성!', cx, isMobile ? canvas.height - 165 : cy + 155, { size: 12, align: 'center', color: '#e74c3c', font: 'bold' });
+  }
+
   // Instructions
   const instrText = isMobile ? '👆 화면을 누르세요: 릴 감기' : '🖱️ 클릭/스페이스: 릴 감기';
   drawText(instrText, cx, isMobile ? canvas.height - 60 : cy + 240, { size: 13, align: 'center', color: COLORS.uiTextDim });
@@ -1085,7 +1585,8 @@ function drawMinigame(t) {
     const col = mg.result === 'caught' ? '#2ecc71' : '#e74c3c';
     drawText(msg, cx, cy, { size: 36, align: 'center', baseline: 'middle', color: col, font: 'bold', shadow: true });
     if (mg.result === 'caught') {
-      drawText(`${mg.fish.rarityData.name} ${mg.fish.name} (${mg.fish.size}cm)`, cx, cy + 45, { size: 18, align: 'center', baseline: 'middle', color: mg.fish.rarityData.color });
+      const bossTag = mg.isBoss ? '👹 BOSS ' : '';
+      drawText(`${bossTag}${mg.fish.rarityData.name} ${mg.fish.name} (${mg.fish.size}cm)`, cx, cy + 45, { size: 18, align: 'center', baseline: 'middle', color: mg.fish.rarityData.color });
       drawText(`+${mg.fish.goldValue}G | +${mg.fish.scoreValue} 점수`, cx, cy + 70, { size: 14, align: 'center', baseline: 'middle', color: COLORS.gold });
     }
   }
@@ -1153,7 +1654,9 @@ function drawInventory(t) {
 
   // Stats
   const sx = 60;
-  drawPanel(sx - 10, 80, 300, 180);
+  const weather = WEATHER[currentWeatherKey];
+  const season = getCurrentSeason();
+  drawPanel(sx - 10, 80, 300, 200);
   drawText('📊 현재 상태', sx, 90, { size: 16, color: COLORS.accentLight, font: 'bold' });
   drawText(`레벨: ${run.level} | XP: ${run.xp}/${run.xpToNext}`, sx, 115, { size: 13, color: COLORS.uiText });
   drawText(`HP: ${Math.ceil(run.hp)}/${run.maxHp}`, sx, 135, { size: 13, color: COLORS.hp });
@@ -1161,16 +1664,18 @@ function drawInventory(t) {
   drawText(`점수: ${run.score.toLocaleString()}`, sx, 175, { size: 13, color: COLORS.uiText });
   drawText(`연속: ${run.combo}회 | 총 포획: ${run.fishCount}마리`, sx, 195, { size: 13, color: COLORS.uiTextDim });
   drawText(`줄 내구도: ${Math.floor(run.lineMax)} | 릴 속도: ${run.reelSpeed.toFixed(2)}x`, sx, 215, { size: 13, color: COLORS.uiTextDim });
-  drawText(`행운 보너스: +${(run.luckBonus * 100).toFixed(0)}%`, sx, 235, { size: 13, color: COLORS.uiTextDim });
+  drawText(`행운 보너스: +${(run.luckBonus * 100).toFixed(0)}% | ${weather.icon} ${weather.name} | ${season.icon} ${season.name}`, sx, 235, { size: 13, color: COLORS.uiTextDim });
+  drawText(`장비: 🎣${EQUIPMENT.rod.tiers[run.equipTier.rod].name} | ⚙️${EQUIPMENT.reel.tiers[run.equipTier.reel].name} | 🪱${EQUIPMENT.bait.tiers[run.equipTier.bait].name}`, sx, 255, { size: 11, color: COLORS.uiTextDim });
 
   // Perks
-  const px = 400;
-  drawPanel(px - 10, 80, 300, 180);
-  drawText('🏅 획득 특성', px, 90, { size: 16, color: COLORS.accentLight, font: 'bold' });
+  const px = isMobile ? 60 : 400;
+  const ppy = isMobile ? 300 : 80;
+  drawPanel(px - 10, ppy, 300, 180);
+  drawText('🏅 획득 특성', px, ppy + 10, { size: 16, color: COLORS.accentLight, font: 'bold' });
   if (run.perks.length === 0) {
-    drawText('아직 없음', px, 120, { size: 13, color: COLORS.uiTextDim });
+    drawText('아직 없음', px, ppy + 40, { size: 13, color: COLORS.uiTextDim });
   } else {
-    let py = 115;
+    let py = ppy + 35;
     for (const pid of run.perks) {
       const perk = PERKS.find(p => p.id === pid);
       if (perk) {
@@ -1181,18 +1686,20 @@ function drawInventory(t) {
   }
 
   // Fish caught
-  drawPanel(sx - 10, 280, canvas.width - 100, 350);
-  drawText('🐟 잡은 물고기', sx, 290, { size: 16, color: COLORS.accentLight, font: 'bold' });
+  const fcY = isMobile ? 500 : 280;
+  drawPanel(sx - 10, fcY, canvas.width - 100, 350);
+  drawText('🐟 잡은 물고기', sx, fcY + 10, { size: 16, color: COLORS.accentLight, font: 'bold' });
   if (run.fishCaught.length === 0) {
-    drawText('아직 물고기를 잡지 못했습니다', sx, 320, { size: 13, color: COLORS.uiTextDim });
+    drawText('아직 물고기를 잡지 못했습니다', sx, fcY + 40, { size: 13, color: COLORS.uiTextDim });
   } else {
-    let fy = 318;
+    let fy = fcY + 38;
     const maxShow = Math.min(run.fishCaught.length, 12);
     for (let i = run.fishCaught.length - 1; i >= Math.max(0, run.fishCaught.length - maxShow); i--) {
       const f = run.fishCaught[i];
       const rData = RARITY[f.rarity];
+      const bossTag = f.isBoss ? '👹' : '';
       drawText(`${rData.name}`, sx, fy, { size: 12, color: rData.color });
-      drawText(`${f.name} (${f.size}cm)`, sx + 40, fy, { size: 12, color: COLORS.uiText });
+      drawText(`${bossTag}${f.name} (${f.size}cm)`, sx + 40, fy, { size: 12, color: COLORS.uiText });
       drawText(`+${f.gold}G`, sx + 220, fy, { size: 12, color: COLORS.gold });
       fy += 22;
     }
@@ -1238,9 +1745,10 @@ function drawGameOver(t) {
   drawPanel(cx - 180, cy - 120, 360, 240);
   drawText('📊 런 결과', cx, cy - 100, { size: 20, align: 'center', color: COLORS.accentLight, font: 'bold' });
 
+  const bossCount = run.fishCaught.filter(f => f.isBoss).length;
   const stats = [
     [`점수: ${run.score.toLocaleString()}`, run.score >= bestScore ? COLORS.gold : COLORS.uiText],
-    [`잡은 물고기: ${run.fishCount}마리`, COLORS.uiText],
+    [`잡은 물고기: ${run.fishCount}마리${bossCount > 0 ? ' (보스 ' + bossCount + ')' : ''}`, COLORS.uiText],
     [`도달 레벨: ${run.level}`, COLORS.uiText],
     [`획득 골드: ${run.gold.toLocaleString()}`, COLORS.gold],
     [`최고 연속: ${run.combo}`, COLORS.uiText],
@@ -1300,6 +1808,10 @@ function gameLoop(timestamp) {
     case 'inventory':
       updateInventory(dt);
       drawInventory(gameTime);
+      break;
+    case 'shop':
+      updateShop(dt);
+      drawShop(gameTime);
       break;
     case 'game_over':
       updateGameOver(dt);
