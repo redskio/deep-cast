@@ -6,3084 +6,1265 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0a0a1a">
-<title>Deep Cast — Roguelike Fishing</title>
+<meta name="theme-color" content="#4a8c5c">
+<title>Deep Cast — 어촌마을 이야기</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-body { background: #0a0a1a; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-canvas { display: block; margin: 0 auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; overflow: hidden; }
+body { background: #1a1a2e; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+#ui-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+#ui-layer > * { pointer-events: auto; }
+.dialog-box { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); width: min(90%, 500px);
+  background: rgba(20,15,30,0.95); border: 2px solid #6c5ce7; border-radius: 8px; padding: 16px 20px;
+  color: #e0e0f0; font-size: 15px; line-height: 1.7; display: none; z-index: 20; }
+.dialog-box .speaker { color: #a29bfe; font-weight: bold; font-size: 14px; margin-bottom: 4px; }
+.dialog-box .tap-hint { color: #6a6a8e; font-size: 11px; text-align: right; margin-top: 8px; }
+.hud-bar { position: fixed; top: 0; left: 0; width: 100%; height: 48px; background: rgba(10,10,26,0.9);
+  display: flex; align-items: center; padding: 0 12px; gap: 14px; z-index: 15; border-bottom: 1px solid #2a2a4e; }
+.hud-item { color: #c8c8e0; font-size: 12px; white-space: nowrap; }
+.hud-item .val { color: #ffd700; font-weight: bold; }
+.bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 52px; background: rgba(10,10,26,0.95);
+  display: flex; z-index: 15; border-top: 1px solid #2a2a4e; }
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: #6a6a8e; font-size: 10px; gap: 2px; cursor: pointer; transition: color 0.2s; border: none; background: none; }
+.nav-btn.active, .nav-btn:active { color: #a29bfe; }
+.nav-btn .icon { font-size: 20px; }
+.menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,5,15,0.92);
+  display: none; z-index: 25; overflow-y: auto; padding: 20px; }
+.menu-overlay.show { display: block; }
+.menu-title { color: #a29bfe; font-size: 22px; font-weight: bold; text-align: center; margin: 10px 0 20px; }
+.menu-close { position: fixed; top: 12px; right: 16px; color: #6a6a8e; font-size: 28px; cursor: pointer; z-index: 30; }
+.item-row { display: flex; align-items: center; padding: 10px 14px; margin: 4px 0; background: rgba(26,26,46,0.8);
+  border-radius: 6px; border: 1px solid #2a2a4e; gap: 10px; }
+.item-row .rarity { font-size: 11px; min-width: 32px; }
+.item-row .name { flex: 1; color: #c8c8e0; font-size: 13px; }
+.item-row .price { color: #ffd700; font-size: 13px; font-weight: bold; }
+.item-row .sell-btn { background: #e67e22; color: #fff; border: none; border-radius: 4px; padding: 4px 12px;
+  font-size: 12px; cursor: pointer; }
+.btn-action { display: inline-block; padding: 10px 24px; background: #6c5ce7; color: #fff; border: none;
+  border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; margin: 6px; }
+.btn-action:disabled { opacity: 0.4; cursor: default; }
+.btn-action.secondary { background: #2d3436; }
+.fishing-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(5,10,30,0.9);
+  display: none; z-index: 25; }
+.fishing-overlay.show { display: flex; align-items: center; justify-content: center; flex-direction: column; }
+.vpad { position: fixed; bottom: 62px; left: 12px; z-index: 18; display: none; }
+.vpad button { width: 48px; height: 48px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(20,20,40,0.6); color: #fff; font-size: 20px; cursor: pointer; margin: 2px; }
+.vpad-row { display: flex; justify-content: center; }
+.action-btn-float { position: fixed; bottom: 70px; right: 16px; width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(108,92,231,0.7); border: 2px solid #a29bfe; color: #fff; font-size: 22px; z-index: 18;
+  display: none; cursor: pointer; }
+@media (hover: none) { .vpad, .action-btn-float { display: block; } }
 </style>
 </head>
 <body>
+
 <canvas id="game"></canvas>
+
+<!-- HUD -->
+<div class="hud-bar" id="hud">
+  <span class="hud-item" id="hud-season">🌸 봄 1일</span>
+  <span class="hud-item" id="hud-time">☀️ 낮</span>
+  <span class="hud-item" id="hud-weather">☀️</span>
+  <span class="hud-item">💰 <span class="val" id="hud-gold">0</span></span>
+  <span class="hud-item">⚡ <span class="val" id="hud-energy">80</span></span>
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav" id="bottom-nav">
+  <button class="nav-btn active" data-screen="world"><span class="icon">🗺️</span>마을</button>
+  <button class="nav-btn" data-screen="fishing"><span class="icon">🎣</span>낚시</button>
+  <button class="nav-btn" data-screen="inventory"><span class="icon">🎒</span>소지품</button>
+  <button class="nav-btn" data-screen="codex"><span class="icon">📖</span>도감</button>
+</div>
+
+<!-- Dialog Box -->
+<div class="dialog-box" id="dialog-box">
+  <div class="speaker" id="dialog-speaker"></div>
+  <div id="dialog-text"></div>
+  <div class="tap-hint">탭하여 계속 ▶</div>
+</div>
+
+<!-- Virtual D-pad (mobile) -->
+<div class="vpad" id="vpad">
+  <div class="vpad-row"><button data-dir="up">▲</button></div>
+  <div class="vpad-row"><button data-dir="left">◀</button><button data-dir="down">▼</button><button data-dir="right">▶</button></div>
+</div>
+<button class="action-btn-float" id="action-btn">⚡</button>
+
+<!-- Inventory Overlay -->
+<div class="menu-overlay" id="inv-overlay">
+  <span class="menu-close" id="inv-close">✕</span>
+  <div class="menu-title">🎒 소지품</div>
+  <div id="inv-list"></div>
+  <div style="text-align:center;margin-top:16px;">
+    <button class="btn-action" id="sell-all-btn">💰 전부 팔기</button>
+  </div>
+</div>
+
+<!-- Codex Overlay -->
+<div class="menu-overlay" id="codex-overlay">
+  <span class="menu-close" id="codex-close">✕</span>
+  <div class="menu-title">📖 물고기 도감</div>
+  <div id="codex-list"></div>
+</div>
+
+<!-- Fishing Overlay -->
+<div class="fishing-overlay" id="fishing-overlay">
+  <canvas id="fishing-canvas" width="360" height="500"></canvas>
+</div>
+
+<!-- Title Screen -->
+<div class="menu-overlay show" id="title-screen" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="font-size:48px;margin-bottom:8px;">🎣</div>
+  <div style="font-size:clamp(28px,6vw,42px);font-weight:900;color:#a29bfe;letter-spacing:0.1em;">DEEP CAST</div>
+  <div style="color:#6a6a8e;font-size:14px;letter-spacing:0.3em;margin:8px 0 30px;">어촌마을 이야기</div>
+  <button class="btn-action" id="btn-new-game" style="font-size:18px;padding:14px 40px;">🌊 새로운 여정</button>
+  <button class="btn-action secondary" id="btn-continue" style="display:none;font-size:15px;padding:10px 32px;margin-top:8px;">▶️ 이어하기</button>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════
-//  DEEP CAST — A Roguelike Fishing Game
+//  DEEP CAST v3.0 — Stardew Valley style 어촌마을 RPG
+//  Tile-based top-down pixel art engine
 //  by Tony Stark (Jarvis Agent System)
-//  v2.0 — Weather, Seasons, Equipment, Boss Fish, Enhanced Codex
 // ═══════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-// ─── RESPONSIVE CANVAS ───
+// ─── CONFIG ───
+const TILE = 16; // base tile size in pixels
+const SCALE = 3; // render scale
+const TS = TILE * SCALE; // scaled tile size (48px)
+const MAP_W = 24;
+const MAP_H = 20;
+
+// ─── PIXEL ART TILE GENERATOR ───
+// Generate all tile graphics programmatically as ImageData
+const tileCanvas = document.createElement('canvas');
+const tileCtx = tileCanvas.getContext('2d');
+tileCanvas.width = TILE * 16; // 16 tiles per row
+tileCanvas.height = TILE * 16;
+
+function px(x, y, color) {
+  tileCtx.fillStyle = color;
+  tileCtx.fillRect(x, y, 1, 1);
+}
+
+function fillTile(tx, ty, color) {
+  tileCtx.fillStyle = color;
+  tileCtx.fillRect(tx * TILE, ty * TILE, TILE, TILE);
+}
+
+// Draw a simple pattern for a tile
+function drawTileArt(tx, ty, drawFn) {
+  const ox = tx * TILE, oy = ty * TILE;
+  drawFn(ox, oy);
+}
+
+// Generate tileset
+function generateTileset() {
+  // 0: Grass
+  drawTileArt(0, 0, (ox, oy) => {
+    fillTile(0, 0, '#5a9e3e');
+    for (let i = 0; i < 8; i++) {
+      px(ox + (i*3+1)%16, oy + (i*5+2)%16, '#4d8a35');
+      px(ox + (i*7+3)%16, oy + (i*3+7)%16, '#6aae4e');
+    }
+  });
+
+  // 1: Dirt path
+  drawTileArt(1, 0, (ox, oy) => {
+    fillTile(1, 0, '#b08850');
+    for (let i = 0; i < 6; i++) {
+      px(ox + (i*5+2)%16, oy + (i*7+3)%16, '#a07840');
+      px(ox + (i*3+1)%16, oy + (i*4+5)%16, '#c09860');
+    }
+  });
+
+  // 2: Water
+  drawTileArt(2, 0, (ox, oy) => {
+    fillTile(2, 0, '#2980b9');
+    for (let i = 0; i < 5; i++) {
+      px(ox + (i*4+1)%16, oy + (i*3+4)%16, '#3498db');
+      px(ox + (i*4+2)%16, oy + (i*3+4)%16, '#3498db');
+    }
+  });
+
+  // 3: Sand
+  drawTileArt(3, 0, (ox, oy) => {
+    fillTile(3, 0, '#dbc078');
+    for (let i = 0; i < 6; i++) px(ox + (i*5+1)%16, oy + (i*3+2)%16, '#c9ad65');
+  });
+
+  // 4: Deep water
+  drawTileArt(4, 0, (ox, oy) => {
+    fillTile(4, 0, '#1a5276');
+    for (let i = 0; i < 4; i++) {
+      px(ox + (i*5+2)%16, oy + (i*4+3)%16, '#1f6690');
+    }
+  });
+
+  // 5: Wood floor
+  drawTileArt(5, 0, (ox, oy) => {
+    fillTile(5, 0, '#8B6914');
+    for (let y = 0; y < 16; y += 4) {
+      tileCtx.fillStyle = '#7a5c10';
+      tileCtx.fillRect(ox, oy + y, 16, 1);
+    }
+    for (let i = 0; i < 4; i++) px(ox + i*4+2, oy + (i%2)*8+2, '#9a7924');
+  });
+
+  // 6: Stone
+  drawTileArt(6, 0, (ox, oy) => {
+    fillTile(6, 0, '#7f8c8d');
+    for (let i = 0; i < 6; i++) {
+      px(ox + (i*5+1)%16, oy + (i*3+2)%16, '#95a5a6');
+      px(ox + (i*3+4)%16, oy + (i*7+1)%16, '#6c7a7b');
+    }
+  });
+
+  // 7: Dark grass (tree area)
+  drawTileArt(7, 0, (ox, oy) => {
+    fillTile(7, 0, '#3d7a2a');
+    for (let i = 0; i < 8; i++) px(ox + (i*3)%16, oy + (i*5+1)%16, '#2d6a1a');
+  });
+
+  // 8: Flowers (red)
+  drawTileArt(8, 0, (ox, oy) => {
+    fillTile(8, 0, '#5a9e3e');
+    const cols = ['#e74c3c','#f39c12','#e91e63','#ff5722'];
+    for (let i = 0; i < 5; i++) {
+      px(ox + (i*4+2)%16, oy + (i*5+3)%16, cols[i%4]);
+      px(ox + (i*4+3)%16, oy + (i*5+3)%16, cols[(i+1)%4]);
+    }
+  });
+
+  // 9: Fence (horizontal)
+  drawTileArt(9, 0, (ox, oy) => {
+    fillTile(9, 0, '#5a9e3e');
+    tileCtx.fillStyle = '#8B6914';
+    tileCtx.fillRect(ox, oy+5, 16, 2);
+    tileCtx.fillRect(ox, oy+10, 16, 2);
+    tileCtx.fillRect(ox+1, oy+3, 2, 11);
+    tileCtx.fillRect(ox+13, oy+3, 2, 11);
+  });
+
+  // 10: Dock planks
+  drawTileArt(10, 0, (ox, oy) => {
+    fillTile(10, 0, '#6d4c21');
+    for (let x = 0; x < 16; x += 4) {
+      tileCtx.fillStyle = '#5d3c11';
+      tileCtx.fillRect(ox + x, oy, 1, 16);
+    }
+    tileCtx.fillStyle = '#7d5c31';
+    tileCtx.fillRect(ox, oy + 7, 16, 1);
+  });
+
+  // Objects row (y=1): 11=Tree trunk, 12=Tree top, 13=Bush, 14=Rock, 15=Fishing spot
+  // 11: Tree trunk
+  drawTileArt(0, 1, (ox, oy) => {
+    fillTile(0, 1, '#5a9e3e');
+    tileCtx.fillStyle = '#6d4c21';
+    tileCtx.fillRect(ox+6, oy, 4, 16);
+    tileCtx.fillStyle = '#5d3c11';
+    tileCtx.fillRect(ox+6, oy, 1, 16);
+  });
+
+  // 12: Tree canopy
+  drawTileArt(1, 1, (ox, oy) => {
+    tileCtx.fillStyle = 'rgba(0,0,0,0)';
+    tileCtx.clearRect(ox, oy, TILE, TILE);
+    tileCtx.fillStyle = '#2d8a1e';
+    tileCtx.beginPath(); tileCtx.arc(ox+8, oy+8, 7, 0, Math.PI*2); tileCtx.fill();
+    tileCtx.fillStyle = '#3d9a2e';
+    tileCtx.beginPath(); tileCtx.arc(ox+6, oy+6, 4, 0, Math.PI*2); tileCtx.fill();
+    tileCtx.fillStyle = '#4daa3e';
+    tileCtx.beginPath(); tileCtx.arc(ox+10, oy+5, 3, 0, Math.PI*2); tileCtx.fill();
+  });
+
+  // 13: Bush
+  drawTileArt(2, 1, (ox, oy) => {
+    fillTile(2, 1, '#5a9e3e');
+    tileCtx.fillStyle = '#2d7a1e';
+    tileCtx.beginPath(); tileCtx.arc(ox+8, oy+10, 6, 0, Math.PI*2); tileCtx.fill();
+    tileCtx.fillStyle = '#3d8a2e';
+    tileCtx.beginPath(); tileCtx.arc(ox+6, oy+8, 3, 0, Math.PI*2); tileCtx.fill();
+  });
+
+  // 14: Rock
+  drawTileArt(3, 1, (ox, oy) => {
+    fillTile(3, 1, '#5a9e3e');
+    tileCtx.fillStyle = '#7f8c8d';
+    tileCtx.beginPath(); tileCtx.ellipse(ox+8, oy+10, 6, 4, 0, 0, Math.PI*2); tileCtx.fill();
+    tileCtx.fillStyle = '#95a5a6';
+    tileCtx.beginPath(); tileCtx.ellipse(ox+7, oy+9, 3, 2, 0, 0, Math.PI*2); tileCtx.fill();
+  });
+
+  // 15: Fishing sign
+  drawTileArt(4, 1, (ox, oy) => {
+    fillTile(4, 1, '#5a9e3e');
+    tileCtx.fillStyle = '#6d4c21';
+    tileCtx.fillRect(ox+7, oy+6, 2, 10);
+    tileCtx.fillStyle = '#8B6914';
+    tileCtx.fillRect(ox+4, oy+4, 8, 5);
+    tileCtx.fillStyle = '#2980b9';
+    px(ox+6, oy+6, '#2980b9'); px(ox+7, oy+5, '#2980b9'); px(ox+9, oy+6, '#2980b9');
+  });
+
+  // Buildings: row 2-3
+  // House wall
+  drawTileArt(0, 2, (ox, oy) => {
+    tileCtx.fillStyle = '#a0522d';
+    tileCtx.fillRect(ox, oy, 16, 16);
+    tileCtx.fillStyle = '#8B4513';
+    for (let y = 0; y < 16; y += 4) tileCtx.fillRect(ox, oy+y, 16, 1);
+    for (let x = 0; x < 16; x += 8) tileCtx.fillRect(ox+x, oy, 1, 16);
+  });
+
+  // House roof
+  drawTileArt(1, 2, (ox, oy) => {
+    tileCtx.fillStyle = '#c0392b';
+    tileCtx.fillRect(ox, oy, 16, 16);
+    tileCtx.fillStyle = '#a93226';
+    for (let y = 0; y < 16; y += 3) tileCtx.fillRect(ox, oy+y, 16, 1);
+  });
+
+  // Door
+  drawTileArt(2, 2, (ox, oy) => {
+    tileCtx.fillStyle = '#a0522d';
+    tileCtx.fillRect(ox, oy, 16, 16);
+    tileCtx.fillStyle = '#5D4037';
+    tileCtx.fillRect(ox+4, oy+4, 8, 12);
+    tileCtx.fillStyle = '#f1c40f';
+    tileCtx.fillRect(ox+10, oy+9, 2, 2);
+  });
+
+  // Window
+  drawTileArt(3, 2, (ox, oy) => {
+    tileCtx.fillStyle = '#a0522d';
+    tileCtx.fillRect(ox, oy, 16, 16);
+    tileCtx.fillStyle = '#85C1E9';
+    tileCtx.fillRect(ox+3, oy+4, 10, 8);
+    tileCtx.fillStyle = '#5D4037';
+    tileCtx.fillRect(ox+7, oy+4, 2, 8);
+    tileCtx.fillRect(ox+3, oy+7, 10, 2);
+  });
+
+  // Shop front
+  drawTileArt(4, 2, (ox, oy) => {
+    tileCtx.fillStyle = '#2c3e50';
+    tileCtx.fillRect(ox, oy, 16, 16);
+    tileCtx.fillStyle = '#f39c12';
+    tileCtx.fillRect(ox+2, oy+2, 12, 3);
+    tileCtx.fillStyle = '#85C1E9';
+    tileCtx.fillRect(ox+2, oy+7, 5, 6);
+    tileCtx.fillRect(ox+9, oy+7, 5, 6);
+  });
+}
+
+generateTileset();
+
+// ─── SPRITE GENERATOR ───
+const spriteCanvas = document.createElement('canvas');
+const spriteCtx = spriteCanvas.getContext('2d');
+spriteCanvas.width = TILE * 8;
+spriteCanvas.height = TILE * 8;
+
+function drawCharSprite(sx, sy, skinColor, hairColor, shirtColor, pantsColor, dir) {
+  const ox = sx * TILE, oy = sy * TILE;
+  spriteCtx.clearRect(ox, oy, TILE, TILE);
+  // Body
+  spriteCtx.fillStyle = shirtColor;
+  spriteCtx.fillRect(ox+5, oy+7, 6, 5);
+  // Pants
+  spriteCtx.fillStyle = pantsColor;
+  spriteCtx.fillRect(ox+5, oy+12, 3, 3);
+  spriteCtx.fillRect(ox+8, oy+12, 3, 3);
+  // Head
+  spriteCtx.fillStyle = skinColor;
+  spriteCtx.fillRect(ox+5, oy+2, 6, 5);
+  // Hair
+  spriteCtx.fillStyle = hairColor;
+  spriteCtx.fillRect(ox+4, oy+1, 8, 2);
+  if (dir === 0) { // down
+    spriteCtx.fillRect(ox+4, oy+2, 1, 3);
+    spriteCtx.fillRect(ox+11, oy+2, 1, 3);
+    // Eyes
+    spriteCtx.fillStyle = '#2c3e50';
+    spriteCtx.fillRect(ox+6, oy+4, 2, 1);
+    spriteCtx.fillRect(ox+9, oy+4, 2, 1);
+  } else if (dir === 1) { // up
+    spriteCtx.fillRect(ox+4, oy+2, 1, 5);
+    spriteCtx.fillRect(ox+11, oy+2, 1, 5);
+  } else if (dir === 2) { // left
+    spriteCtx.fillRect(ox+4, oy+2, 2, 5);
+    spriteCtx.fillStyle = '#2c3e50';
+    spriteCtx.fillRect(ox+6, oy+4, 1, 1);
+  } else { // right
+    spriteCtx.fillRect(ox+10, oy+2, 2, 5);
+    spriteCtx.fillStyle = '#2c3e50';
+    spriteCtx.fillRect(ox+9, oy+4, 1, 1);
+  }
+  // Shoes
+  spriteCtx.fillStyle = '#5D4037';
+  spriteCtx.fillRect(ox+5, oy+14, 2, 1);
+  spriteCtx.fillRect(ox+9, oy+14, 2, 1);
+}
+
+// Generate player sprites (4 directions x 2 frames)
+function generatePlayerSprites() {
+  for (let dir = 0; dir < 4; dir++) {
+    drawCharSprite(dir*2, 0, '#deb887', '#6d4c21', '#2980b9', '#34495e', dir);
+    drawCharSprite(dir*2+1, 0, '#deb887', '#6d4c21', '#2980b9', '#34495e', dir);
+  }
+}
+
+function generateNPCSprites() {
+  for (let dir = 0; dir < 4; dir++)
+    drawCharSprite(dir, 1, '#deb887', '#bdc3c7', '#e67e22', '#6d4c21', dir);
+  for (let dir = 0; dir < 4; dir++)
+    drawCharSprite(dir, 2, '#d4a574', '#2c3e50', '#34495e', '#2c3e50', dir);
+  for (let dir = 0; dir < 4; dir++)
+    drawCharSprite(dir, 3, '#d4a574', '#e74c3c', '#c0392b', '#2c3e50', dir);
+  for (let dir = 0; dir < 4; dir++)
+    drawCharSprite(dir, 4, '#f5deb3', '#8e44ad', '#9b59b6', '#6c3483', dir);
+}
+
+generatePlayerSprites();
+generateNPCSprites();
+
+// ─── MAP DATA ───
+// Tile indices: 0=grass, 1=dirt, 2=water, 3=sand, 4=deep water, 5=wood, 6=stone, 7=dark grass,
+//              8=flowers, 9=fence, 10=dock planks
+// Object layer uses tile row 1 (indices 16-31): 16=tree trunk, 17=tree top, 18=bush, 19=rock, 20=fishing sign
+// Building layer uses row 2: 32=house wall, 33=roof, 34=door, 35=window, 36=shop
+
+const GROUND = [
+  // Row 0-3: Top area (trees + dark grass)
+  [7,7,7,7,7,7,7,7,0,0,0,0,0,0,0,0,0,7,7,7,7,7,7,7],
+  [7,7,7,0,0,0,7,7,0,1,1,0,0,0,0,0,0,7,7,0,0,0,7,7],
+  [7,0,0,0,0,0,0,0,0,1,1,0,8,8,0,0,0,0,0,0,0,0,0,7],
+  [7,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,7],
+  // Row 4-7: Village center
+  [0,0,0,5,5,5,5,0,0,1,1,0,0,0,6,6,6,6,0,0,0,0,0,0],
+  [0,0,0,5,5,5,5,0,0,1,1,0,0,0,6,5,5,6,0,0,8,8,0,0],
+  [0,0,0,5,5,5,5,0,0,1,1,0,0,0,6,5,5,6,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,1,1,0,0,0,6,6,6,6,0,0,0,0,0,0],
+  // Row 8-11: Central path + shops
+  [0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,5,5,5,5,0,0,0,0],
+  [8,0,0,0,0,0,0,1,1,0,0,1,1,0,0,0,5,5,5,5,0,0,0,0],
+  [0,0,0,0,0,0,0,1,1,0,0,1,1,0,0,0,5,5,5,5,0,0,0,0],
+  // Row 12-15: Beach + dock area
+  [0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [3,3,3,3,3,3,3,3,1,1,3,3,3,3,3,3,3,3,3,3,3,3,3,3],
+  [3,3,3,3,3,10,10,10,10,10,10,10,10,3,3,3,3,3,3,3,3,3,3,3],
+  [2,2,3,3,3,10,10,10,10,10,10,10,10,3,3,3,2,2,2,2,2,2,2,2],
+  // Row 16-19: Water
+  [2,2,2,2,2,10,10,10,10,10,10,10,10,2,2,2,2,2,4,4,4,2,2,2],
+  [2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,4,2,2],
+  [4,2,2,2,2,2,2,2,2,2,2,2,2,2,2,4,4,4,4,4,4,4,4,4],
+  [4,4,4,4,2,2,2,2,2,2,2,2,2,2,4,4,4,4,4,4,4,4,4,4],
+];
+
+// Objects that block movement (trees, buildings, etc.)
+const OBJECTS = [
+  // [x, y, tileX, tileY, solid, interactType, interactId]
+  // Trees
+  {x:0,y:0,tx:0,ty:1,solid:true},{x:1,y:0,tx:0,ty:1,solid:true},{x:6,y:0,tx:0,ty:1,solid:true},{x:7,y:0,tx:0,ty:1,solid:true},
+  {x:17,y:0,tx:0,ty:1,solid:true},{x:18,y:0,tx:0,ty:1,solid:true},{x:22,y:0,tx:0,ty:1,solid:true},{x:23,y:0,tx:0,ty:1,solid:true},
+  {x:0,y:1,tx:0,ty:1,solid:true},{x:1,y:1,tx:0,ty:1,solid:true},{x:6,y:1,tx:0,ty:1,solid:true},
+  {x:3,y:1,tx:0,ty:1,solid:true},{x:17,y:1,tx:0,ty:1,solid:true},{x:22,y:1,tx:0,ty:1,solid:true},
+  // Rocks
+  {x:2,y:8,tx:3,ty:1,solid:true},{x:5,y:7,tx:3,ty:1,solid:true},
+  // Bushes
+  {x:20,y:3,tx:2,ty:1,solid:true},{x:21,y:3,tx:2,ty:1,solid:true},{x:1,y:3,tx:2,ty:1,solid:true},
+  // Fishing signs
+  {x:8,y:14,tx:4,ty:1,solid:false,interact:'fish',id:'dock_fish'},
+  {x:11,y:16,tx:4,ty:1,solid:false,interact:'fish',id:'deep_fish'},
+  // House (3-5, row 4-6) — walls drawn as buildings
+  {x:3,y:3,tx:1,ty:2,solid:true},{x:4,y:3,tx:1,ty:2,solid:true},{x:5,y:3,tx:1,ty:2,solid:true},{x:6,y:3,tx:1,ty:2,solid:true},
+  {x:3,y:4,tx:0,ty:2,solid:true},{x:6,y:4,tx:0,ty:2,solid:true},
+  {x:3,y:5,tx:0,ty:2,solid:true},{x:6,y:5,tx:0,ty:2,solid:true},
+  {x:4,y:4,tx:3,ty:2,solid:true}, // window
+  {x:5,y:4,tx:3,ty:2,solid:true}, // window
+  {x:4,y:6,tx:2,ty:2,solid:false,interact:'enter',id:'home'}, // door
+  {x:5,y:6,tx:0,ty:2,solid:true},
+  // Shop (14-17, row 4-7) — market
+  {x:14,y:3,tx:1,ty:2,solid:true},{x:15,y:3,tx:1,ty:2,solid:true},{x:16,y:3,tx:1,ty:2,solid:true},{x:17,y:3,tx:1,ty:2,solid:true},
+  {x:14,y:4,tx:0,ty:2,solid:true},{x:17,y:4,tx:0,ty:2,solid:true},
+  {x:15,y:4,tx:4,ty:2,solid:true},{x:16,y:4,tx:4,ty:2,solid:true},
+  {x:14,y:6,tx:0,ty:2,solid:true},{x:17,y:6,tx:0,ty:2,solid:true},
+  {x:15,y:7,tx:2,ty:2,solid:false,interact:'shop',id:'market'}, // market door
+  {x:16,y:7,tx:0,ty:2,solid:true},
+  // Shrine area (top-right)
+  {x:16,y:9,tx:0,ty:2,solid:true},{x:19,y:9,tx:0,ty:2,solid:true},
+  {x:16,y:10,tx:0,ty:2,solid:true},{x:19,y:10,tx:0,ty:2,solid:true},
+  {x:17,y:11,tx:2,ty:2,solid:false,interact:'enter',id:'shrine'}, // shrine entrance
+];
+
+// NPC data
+const NPCS = [
+  { id:'granny', name:'해산물 할머니', x:15, y:8, dir:0, spriteRow:1,
+    dialog:['어서 오렴~ 오늘은 뭘 잡아왔니?','좋은 물고기 있으면 비싸게 쳐줄게.','시장에서 물고기를 팔 수 있단다.'],
+    gift_dialog:'고맙구나! 맛있는 거 해줄게~' },
+  { id:'captain', name:'노선장', x:9, y:15, dir:0, spriteRow:2,
+    dialog:['오, 젊은이! 바다가 부르는 소리가 들리나?','부두 끝에서 낚시를 해보게.','장비가 좋아야 큰 놈을 잡을 수 있어!'],
+    gift_dialog:'허허, 이런 고급 물고기를! 고맙네.' },
+  { id:'rival', name:'강태공', x:6, y:13, dir:0, spriteRow:3,
+    dialog:['흥, 또 왔어? 오늘은 내가 더 많이 잡을거야!','그 장비로 뭘 잡겠다고?','... 좀 하는데? 인정해줄게.'],
+    gift_dialog:'뭐야... 고마워. 다음엔 내가 이길거야!' },
+  { id:'mystic', name:'해녀 수연', x:18, y:10, dir:2, spriteRow:4,
+    dialog:['바다의 속삭임이 들려...','보름달 밤에 심해에서 전설의 물고기가 나타난다고 해요.','이 해신당에 기도하면 행운이 올 거예요.'],
+    gift_dialog:'와... 아름다운 물고기! 바다의 축복이에요.' },
+];
+
+// ─── FISH DATA ───
+const FISH = [
+  {name:'붕어',rarity:'common',color:'#aaa',minSize:10,maxSize:25,gold:5,diff:1,season:'all'},
+  {name:'미꾸라지',rarity:'common',color:'#aaa',minSize:8,maxSize:18,gold:4,diff:1,season:'all'},
+  {name:'잉어',rarity:'common',color:'#aaa',minSize:20,maxSize:45,gold:8,diff:1.5,season:'all'},
+  {name:'피라미',rarity:'common',color:'#aaa',minSize:5,maxSize:12,gold:3,diff:0.8,season:'spring'},
+  {name:'갈치',rarity:'common',color:'#aaa',minSize:60,maxSize:120,gold:6,diff:1.2,season:'summer'},
+  {name:'메기',rarity:'uncommon',color:'#2ecc71',minSize:30,maxSize:70,gold:15,diff:2,season:'all'},
+  {name:'쏘가리',rarity:'uncommon',color:'#2ecc71',minSize:25,maxSize:50,gold:20,diff:2.5,season:'autumn'},
+  {name:'농어',rarity:'uncommon',color:'#2ecc71',minSize:30,maxSize:60,gold:18,diff:2,season:'summer'},
+  {name:'연어',rarity:'rare',color:'#3498db',minSize:50,maxSize:90,gold:40,diff:3,season:'autumn'},
+  {name:'황금붕어',rarity:'rare',color:'#3498db',minSize:15,maxSize:30,gold:50,diff:2,season:'spring'},
+  {name:'철갑상어',rarity:'rare',color:'#3498db',minSize:80,maxSize:150,gold:60,diff:4,season:'winter'},
+  {name:'대왕문어',rarity:'epic',color:'#9b59b6',minSize:100,maxSize:200,gold:120,diff:5,season:'summer'},
+  {name:'심해아귀',rarity:'epic',color:'#9b59b6',minSize:60,maxSize:120,gold:100,diff:4.5,season:'winter'},
+  {name:'용왕의 비늘고기',rarity:'legendary',color:'#f39c12',minSize:150,maxSize:300,gold:500,diff:7,season:'all'},
+  {name:'해신의 사자',rarity:'mythic',color:'#e74c3c',minSize:300,maxSize:600,gold:2000,diff:10,season:'all'},
+];
+
+const RARITY_CHANCES = {common:0.50,uncommon:0.25,rare:0.13,epic:0.08,legendary:0.03,mythic:0.01};
+const SEASON_NAMES = ['봄','여름','가을','겨울'];
+const SEASON_ICONS = ['🌸','☀️','🍂','❄️'];
+const SEASON_KEYS = ['spring','summer','autumn','winter'];
+const TIME_NAMES = ['아침','낮','저녁','밤'];
+const TIME_ICONS = ['🌅','☀️','🌇','🌙'];
+const WEATHER_TYPES = [{name:'맑음',icon:'☀️',w:40},{name:'흐림',icon:'☁️',w:25},{name:'비',icon:'🌧️',w:25},{name:'폭풍',icon:'⛈️',w:10}];
+
+// ─── GAME STATE ───
+let game = null;
+function defaultGame() {
+  return {
+    // Player
+    px: 9, py: 10, dir: 0, moving: false, moveTimer: 0,
+    // Village
+    gold: 100, energy: 80, maxEnergy: 80,
+    day: 1, season: 0, timeOfDay: 1, weather: 0,
+    // Inventory
+    inventory: [], invMax: 20,
+    codex: [],
+    // NPC
+    friendship: {granny:0,captain:0,rival:0,mystic:0},
+    giftedToday: {},
+    // Buildings
+    buildLevels: {home:0,market:0,dock:0,shrine:0},
+    // Stats
+    totalFish: 0, totalGold: 0, daysPlayed: 0,
+    // Quest
+    activeQuest: null, questProgress: 0,
+  };
+}
+
+function save() { if(game) localStorage.setItem('dc3_save',JSON.stringify(game)); }
+function load() { try{const d=localStorage.getItem('dc3_save');if(d){game=JSON.parse(d);return true;}}catch(e){} return false; }
+
+// ─── SCREEN STATE ───
+let screen = 'title'; // title, world, fishing_mini
+let dialogQueue = [];
+let dialogActive = false;
+
+// ─── RESIZE ───
+let viewW, viewH, offsetX, offsetY, camX, camY;
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  const w = window.innerWidth, h = window.innerHeight - 100; // 48 top + 52 bottom
+  canvas.width = w;
+  canvas.height = h;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  canvas.style.marginTop = '48px';
+  viewW = Math.ceil(w / TS) + 2;
+  viewH = Math.ceil(h / TS) + 2;
 }
 window.addEventListener('resize', resize);
 resize();
 
-// ─── CONSTANTS ───
-const COLORS = {
-  bg: '#0a0e1a',
-  water: '#0d1b3e',
-  waterLight: '#132952',
-  waterDeep: '#08102a',
-  sky: '#0f1729',
-  skyGrad1: '#1a1040',
-  skyGrad2: '#0a0e2a',
-  sand: '#3d3520',
-  ui: '#1a1a2e',
-  uiBorder: '#2a2a4e',
-  uiText: '#c8c8e0',
-  uiTextDim: '#6a6a8e',
-  accent: '#6c5ce7',
-  accentLight: '#a29bfe',
-  gold: '#ffd700',
-  hp: '#e74c3c',
-  hpBg: '#3d1515',
-  xp: '#2ecc71',
-  xpBg: '#153d20',
-  white: '#ffffff',
-  black: '#000000',
-};
+// ─── INPUT ───
+const keys = {};
+const vpadState = {up:false,down:false,left:false,right:false};
+let actionPressed = false;
 
-const RARITY = {
-  common:    { name: '일반', color: '#aaaaaa', chance: 0.50, scoreMulti: 1 },
-  uncommon:  { name: '고급', color: '#2ecc71', chance: 0.25, scoreMulti: 2 },
-  rare:      { name: '희귀', color: '#3498db', chance: 0.13, scoreMulti: 4 },
-  epic:      { name: '영웅', color: '#9b59b6', chance: 0.08, scoreMulti: 8 },
-  legendary: { name: '전설', color: '#f39c12', chance: 0.03, scoreMulti: 20 },
-  mythic:    { name: '신화', color: '#e74c3c', chance: 0.01, scoreMulti: 50 },
-};
+window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code==='Space'||e.code==='Enter') actionPressed = true; });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
 
-const FISH_DATA = [
-  // Common
-  { name: '붕어', rarity: 'common', minSize: 10, maxSize: 25, speed: 1.0, fight: 1, baseGold: 5 },
-  { name: '미꾸라지', rarity: 'common', minSize: 8, maxSize: 18, speed: 1.5, fight: 1, baseGold: 4 },
-  { name: '송사리', rarity: 'common', minSize: 3, maxSize: 8, speed: 0.8, fight: 0.5, baseGold: 2 },
-  { name: '잉어', rarity: 'common', minSize: 20, maxSize: 45, speed: 0.7, fight: 2, baseGold: 8 },
-  { name: '피라미', rarity: 'common', minSize: 5, maxSize: 12, speed: 1.2, fight: 0.8, baseGold: 3 },
-  { name: '갈치', rarity: 'common', minSize: 60, maxSize: 120, speed: 1.1, fight: 1.5, baseGold: 6 },
-  // Uncommon
-  { name: '메기', rarity: 'uncommon', minSize: 30, maxSize: 70, speed: 0.6, fight: 3, baseGold: 15 },
-  { name: '쏘가리', rarity: 'uncommon', minSize: 25, maxSize: 50, speed: 1.0, fight: 2.5, baseGold: 20 },
-  { name: '농어', rarity: 'uncommon', minSize: 30, maxSize: 60, speed: 1.1, fight: 2, baseGold: 18 },
-  { name: '뱀장어', rarity: 'uncommon', minSize: 40, maxSize: 80, speed: 1.3, fight: 3, baseGold: 22 },
-  { name: '해마', rarity: 'uncommon', minSize: 5, maxSize: 15, speed: 0.5, fight: 1, baseGold: 25 },
-  // Rare
-  { name: '연어', rarity: 'rare', minSize: 50, maxSize: 90, speed: 1.5, fight: 4, baseGold: 40 },
-  { name: '황금붕어', rarity: 'rare', minSize: 15, maxSize: 30, speed: 1.0, fight: 2, baseGold: 50 },
-  { name: '철갑상어', rarity: 'rare', minSize: 80, maxSize: 150, speed: 0.5, fight: 5, baseGold: 60 },
-  { name: '전기가오리', rarity: 'rare', minSize: 40, maxSize: 80, speed: 0.8, fight: 5, baseGold: 55 },
-  { name: '심해 유령상어', rarity: 'rare', minSize: 100, maxSize: 200, speed: 1.0, fight: 6, baseGold: 70 },
-  // Epic
-  { name: '대왕문어', rarity: 'epic', minSize: 100, maxSize: 200, speed: 0.8, fight: 7, baseGold: 120 },
-  { name: '심해아귀', rarity: 'epic', minSize: 60, maxSize: 120, speed: 0.6, fight: 6, baseGold: 100 },
-  { name: '황금잉어', rarity: 'epic', minSize: 40, maxSize: 80, speed: 0.9, fight: 4, baseGold: 150 },
-  { name: '만타가오리', rarity: 'epic', minSize: 200, maxSize: 450, speed: 0.7, fight: 5, baseGold: 130 },
-  { name: '고대 실러캔스', rarity: 'epic', minSize: 80, maxSize: 170, speed: 0.4, fight: 4, baseGold: 180 },
-  // Legendary
-  { name: '용왕의 비늘고기', rarity: 'legendary', minSize: 150, maxSize: 300, speed: 1.2, fight: 9, baseGold: 500 },
-  { name: '백룡어', rarity: 'legendary', minSize: 200, maxSize: 400, speed: 1.0, fight: 10, baseGold: 600 },
-  { name: '인어의 눈물고기', rarity: 'legendary', minSize: 30, maxSize: 60, speed: 2.0, fight: 8, baseGold: 700 },
-  { name: '용궁 거북', rarity: 'legendary', minSize: 120, maxSize: 250, speed: 0.3, fight: 11, baseGold: 800 },
-  // Mythic
-  { name: '해신의 사자', rarity: 'mythic', minSize: 300, maxSize: 600, speed: 1.5, fight: 12, baseGold: 2000 },
-  { name: '리바이어던의 새끼', rarity: 'mythic', minSize: 500, maxSize: 999, speed: 2.0, fight: 15, baseGold: 5000 },
-  { name: '크라켄의 촉수', rarity: 'mythic', minSize: 400, maxSize: 800, speed: 1.8, fight: 14, baseGold: 4000 },
-];
+// Virtual D-pad
+document.querySelectorAll('#vpad button').forEach(btn => {
+  const dir = btn.dataset.dir;
+  btn.addEventListener('touchstart', e => { e.preventDefault(); vpadState[dir] = true; }, {passive:false});
+  btn.addEventListener('touchend', e => { e.preventDefault(); vpadState[dir] = false; }, {passive:false});
+  btn.addEventListener('mousedown', () => vpadState[dir] = true);
+  btn.addEventListener('mouseup', () => vpadState[dir] = false);
+});
+document.getElementById('action-btn').addEventListener('click', () => actionPressed = true);
 
-const LOCATIONS = [
-  { name: '고요한 연못', depth: 1, waterColor: '#0d2b4e', rarityBonus: 0, desc: '잔잔한 물결, 초보자의 시작점' },
-  { name: '바위 계곡', depth: 2, waterColor: '#0a2040', rarityBonus: 0.05, desc: '급류 속 강한 물고기들' },
-  { name: '어둠의 호수', depth: 3, waterColor: '#061530', rarityBonus: 0.10, desc: '깊고 어두운 물 아래 무언가...' },
-  { name: '폭풍의 바다', depth: 4, waterColor: '#0a1525', rarityBonus: 0.15, desc: '거센 파도와 거대한 어류' },
-  { name: '심연의 균열', depth: 5, waterColor: '#050d1a', rarityBonus: 0.25, desc: '해저 균열에서 올라오는 고대 존재' },
-];
+// Canvas tap for movement
+canvas.addEventListener('click', e => {
+  if (screen !== 'world' || dialogActive) return;
+  const rect = canvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+  const worldX = (cx + camX) / TS, worldY = (cy + camY) / TS;
+  const dx = worldX - game.px, dy = worldY - game.py;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (dx > 0.5) vpadState.right = true; else if (dx < -0.5) vpadState.left = true;
+  } else {
+    if (dy > 0.5) vpadState.down = true; else if (dy < -0.5) vpadState.up = true;
+  }
+  setTimeout(() => { vpadState.up=vpadState.down=vpadState.left=vpadState.right=false; }, 200);
+});
 
-const PERKS = [
-  { id: 'strong_line', name: '강화 낚싯줄', desc: '줄 내구도 +30%', icon: '🧵', apply: s => { s.lineMax *= 1.3; s.line = s.lineMax; }},
-  { id: 'quick_reel', name: '고속 릴', desc: '릴 감기 속도 +25%', icon: '⚡', apply: s => { s.reelSpeed *= 1.25; }},
-  { id: 'lucky_charm', name: '행운의 부적', desc: '희귀 확률 +10%', icon: '🍀', apply: s => { s.luckBonus += 0.10; }},
-  { id: 'iron_hook', name: '강철 낚싯바늘', desc: '물고기 저항 -20%', icon: '🪝', apply: s => { s.hookPower *= 1.2; }},
-  { id: 'bait_master', name: '미끼 달인', desc: '입질 속도 2배', icon: '🪱', apply: s => { s.biteSpeed *= 2; }},
-  { id: 'deep_cast', name: '원투 캐스팅', desc: '깊은 곳 접근 가능', icon: '🎯', apply: s => { s.castRange += 50; }},
-  { id: 'heal_catch', name: '회복 낚시', desc: '물고기 잡을 때 체력 +5', icon: '💚', apply: s => { s.healOnCatch += 5; }},
-  { id: 'gold_hook', name: '황금 낚싯바늘', desc: '골드 획득 +50%', icon: '💰', apply: s => { s.goldMulti *= 1.5; }},
-  { id: 'thick_skin', name: '두꺼운 장갑', desc: '받는 피해 -25%', icon: '🧤', apply: s => { s.damageReduce += 0.25; }},
-  { id: 'combo_fisher', name: '연속 낚시꾼', desc: '연속 성공 시 점수 보너스', icon: '🔥', apply: s => { s.comboBonus += 0.15; }},
-  { id: 'sonar', name: '어군탐지기', desc: '물고기 위치 표시', icon: '📡', apply: s => { s.hasSonar = true; }},
-  { id: 'double_catch', name: '그물 보조', desc: '20% 확률로 2마리', icon: '🥅', apply: s => { s.doubleCatchChance += 0.2; }},
-  // New perks
-  { id: 'storm_rider', name: '폭풍 항해사', desc: '폭풍 시 피해 무효 + 희귀 +5%', icon: '⛈️', apply: s => { s.stormImmune = true; }},
-  { id: 'treasure_sense', name: '보물 감지', desc: '이벤트 발생 확률 2배', icon: '🔮', apply: s => { s.eventChance = 0.16; }},
-  { id: 'patience', name: '인내의 낚시꾼', desc: '미니게임 타이머 +40%', icon: '🧘', apply: s => { s.timerMulti = (s.timerMulti||1) * 1.4; }},
-  { id: 'critical_hook', name: '치명적 갈고리', desc: '25% 확률 진행도 2배', icon: '⚔️', apply: s => { s.critChance = (s.critChance||0) + 0.25; }},
-  { id: 'midas_touch', name: '미다스의 손', desc: '일반 물고기 골드 3배', icon: '👑', apply: s => { s.commonGoldMulti = 3; }},
-  { id: 'adrenaline', name: '아드레날린', desc: 'HP 30% 이하 시 릴속도 +60%', icon: '💉', apply: s => { s.hasAdrenaline = true; }},
-];
+// ─── NAV ───
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const s = btn.dataset.screen;
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (s === 'world') { closeAllOverlays(); screen = 'world'; }
+    else if (s === 'fishing') { startFishing(); }
+    else if (s === 'inventory') { showInventory(); }
+    else if (s === 'codex') { showCodex(); }
+  });
+});
 
-const EVENTS = [
-  { name: '🌊 폭풍 경고', desc: '물고기가 더 공격적이지만 희귀해집니다', effect: s => { s.tempFight = 1.5; s.tempRarity = 0.1; }, duration: 30 },
-  { name: '🌙 보름달', desc: '신비로운 물고기 출현율 증가', effect: s => { s.tempRarity = 0.15; }, duration: 45 },
-  { name: '💀 해적선 잔해', desc: '보물상자 발견! 골드 보너스', effect: s => { s.tempGold = 2; }, duration: 20 },
-  { name: '🐚 조개 떼', desc: '작은 물고기가 대량 출현', effect: s => { s.tempBiteSpeed = 3; }, duration: 25 },
-  { name: '⚡ 번개 폭풍', desc: '위험하지만 전설급 확률 UP', effect: s => { s.tempRarity = 0.2; s.tempDmg = 2; }, duration: 20 },
-];
+// ─── DIALOG SYSTEM ───
+const dialogBox = document.getElementById('dialog-box');
+function showDialog(speaker, lines) {
+  dialogQueue = Array.isArray(lines) ? [...lines] : [lines];
+  dialogActive = true;
+  document.getElementById('dialog-speaker').textContent = speaker;
+  document.getElementById('dialog-text').textContent = dialogQueue.shift();
+  dialogBox.style.display = 'block';
+}
+dialogBox.addEventListener('click', () => {
+  if (dialogQueue.length > 0) {
+    document.getElementById('dialog-text').textContent = dialogQueue.shift();
+  } else {
+    dialogBox.style.display = 'none';
+    dialogActive = false;
+  }
+});
 
-// ─── WEATHER SYSTEM ───
-const WEATHER = {
-  clear:  { name: '맑음', icon: '☀️', rarityMod: 0, fightMod: 1.0, biteSpeedMod: 1.0, goldMod: 1.0, weight: 40 },
-  rain:   { name: '비', icon: '🌧️', rarityMod: 0.03, fightMod: 0.9, biteSpeedMod: 1.4, goldMod: 1.0, weight: 30 },
-  fog:    { name: '안개', icon: '🌫️', rarityMod: 0.08, fightMod: 1.1, biteSpeedMod: 0.7, goldMod: 1.3, weight: 20 },
-  storm:  { name: '폭풍', icon: '⛈️', rarityMod: 0.12, fightMod: 1.5, biteSpeedMod: 0.5, goldMod: 1.8, weight: 10 },
-};
-
-// ─── SEASON SYSTEM ───
-const SEASONS = {
-  spring: { name: '봄', icon: '🌸', rarityMod: 0.02, biteSpeedMod: 1.2, fightMod: 0.9, goldMod: 1.0 },
-  summer: { name: '여름', icon: '☀️', rarityMod: 0, biteSpeedMod: 1.0, fightMod: 1.0, goldMod: 1.3 },
-  autumn: { name: '가을', icon: '🍂', rarityMod: 0.05, biteSpeedMod: 0.9, fightMod: 1.1, goldMod: 1.1 },
-  winter: { name: '겨울', icon: '❄️', rarityMod: 0.08, biteSpeedMod: 0.6, fightMod: 1.4, goldMod: 1.5 },
-};
-const SEASON_KEYS = ['spring', 'summer', 'autumn', 'winter'];
-
-// ─── EQUIPMENT / SHOP SYSTEM ───
-const EQUIPMENT = {
-  rod: {
-    name: '낚싯대', icon: '🎣',
-    tiers: [
-      { name: '나무 낚싯대', cost: 0, lineMax: 0, hookPower: 0 },
-      { name: '대나무 낚싯대', cost: 80, lineMax: 20, hookPower: 0.1, reqLevel: 2 },
-      { name: '탄소섬유 낚싯대', cost: 300, lineMax: 50, hookPower: 0.25, reqLevel: 5 },
-      { name: '심해 낚싯대', cost: 800, lineMax: 80, hookPower: 0.4, reqLevel: 8 },
-    ]
-  },
-  reel: {
-    name: '릴', icon: '⚙️',
-    tiers: [
-      { name: '기본 릴', cost: 0, reelSpeed: 0 },
-      { name: '고속 릴', cost: 100, reelSpeed: 0.15, reqLevel: 2 },
-      { name: '전동 릴', cost: 350, reelSpeed: 0.35, reqLevel: 5 },
-      { name: '유압 릴', cost: 900, reelSpeed: 0.6, reqLevel: 9 },
-    ]
-  },
-  bait: {
-    name: '미끼', icon: '🪱',
-    tiers: [
-      { name: '지렁이', cost: 0, biteSpeed: 0, luckBonus: 0 },
-      { name: '떡밥', cost: 60, biteSpeed: 0.3, luckBonus: 0.02, reqLevel: 1 },
-      { name: '살아있는 새우', cost: 250, biteSpeed: 0.6, luckBonus: 0.05, reqLevel: 4 },
-      { name: '용의 비늘 미끼', cost: 700, biteSpeed: 1.0, luckBonus: 0.10, reqLevel: 7 },
-    ]
-  },
-};
-
-// ─── BOSS FISH SYSTEM ───
-const BOSS_CONFIG = {
-  spawnEvery: 15,
-  firstBossAt: 10,
-  hpMulti: 2.5,
-  sizeMulti: 1.8,
-  goldMulti: 4,
-  xpMulti: 3,
-  timerBonus: 8,
-  catchZonePenalty: 0.7,
-};
-
-const BOSS_FISH = [
-  { name: '심해 군주', rarity: 'rare', minSize: 120, maxSize: 250, speed: 1.8, fight: 8, baseGold: 100, isBoss: true },
-  { name: '폭풍의 제왕', rarity: 'epic', minSize: 200, maxSize: 400, speed: 1.5, fight: 12, baseGold: 250, isBoss: true },
-  { name: '용의 후예', rarity: 'legendary', minSize: 350, maxSize: 600, speed: 2.0, fight: 16, baseGold: 800, isBoss: true },
-  { name: '크라켄', rarity: 'mythic', minSize: 600, maxSize: 999, speed: 2.5, fight: 20, baseGold: 3000, isBoss: true },
-];
-
-// ─── VILLAGE / NPC / ECONOMY DATA ───
-const NPCS = [
-  { id: 'granny', name: '해산물 할머니', icon: '👵', role: '시장 상인',
-    color: '#e67e22', location: 'market',
-    greeting: '어서 오렴, 오늘은 뭘 잡아왔니?',
-    dialogs: [
-      { friendship: 0, lines: ['요즘 바다가 거칠어서 장사가 안 되네...', '좋은 물고기 있으면 비싸게 쳐줄게.'] },
-      { friendship: 20, lines: ['자네가 오면 시장이 활기차지네!', '오늘은 특별히 좋은 값에 사줄게.'] },
-      { friendship: 50, lines: ['자네는 내 손주 같아...', '비밀인데, 심연의 균열에 전설의 물고기가 있다더라.'] },
-    ],
-    gifts: { common: 2, uncommon: 5, rare: 10, epic: 15, legendary: 25, mythic: 40 },
-    quest: { id: 'granny_q1', desc: '할머니의 부탁: 연어 3마리 가져오기', fish: '연어', count: 3, reward: 200, friendReward: 15 },
-    draw: (cx, cy, s) => {
-      ctx.fillStyle = '#bdc3c7'; ctx.beginPath(); ctx.arc(cx, cy - s*0.4, s*0.22, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#deb887'; ctx.beginPath(); ctx.arc(cx, cy - s*0.4, s*0.18, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#2c3e50'; ctx.beginPath(); ctx.arc(cx-s*0.06, cy-s*0.44, 1.5, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx+s*0.06, cy-s*0.44, 1.5, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#e67e22'; ctx.fillRect(cx-s*0.18, cy-s*0.18, s*0.36, s*0.5);
-      ctx.fillStyle = '#d35400'; ctx.beginPath(); ctx.ellipse(cx, cy-s*0.58, s*0.25, s*0.08, 0, 0, Math.PI*2); ctx.fill();
-    }
-  },
-  { id: 'captain', name: '노선장', icon: '⚓', role: '은퇴한 선장',
-    color: '#2c3e50', location: 'dock',
-    greeting: '오, 젊은이! 바다가 부르는 소리가 들리나?',
-    dialogs: [
-      { friendship: 0, lines: ['이 부두는 내가 30년 전에 지었지...', '장비가 좋아야 큰 놈을 잡을 수 있어.'] },
-      { friendship: 20, lines: ['자네 실력이 나날이 늘고 있어!', '폭풍이 올 때 바다로 나가면 큰 놈을 만날 수 있지.'] },
-      { friendship: 50, lines: ['자네에게만 알려주지... 보름달 밤에 심연에서 용궁 거북을 봤어.', '내 최고의 낚싯대를 물려주마.'] },
-    ],
-    gifts: { common: 1, uncommon: 3, rare: 8, epic: 12, legendary: 20, mythic: 35 },
-    quest: { id: 'captain_q1', desc: '선장의 도전: 메기 5마리 잡기', fish: '메기', count: 5, reward: 150, friendReward: 10 },
-    draw: (cx, cy, s) => {
-      ctx.fillStyle = '#2c3e50'; ctx.beginPath(); ctx.ellipse(cx, cy-s*0.6, s*0.3, s*0.1, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillRect(cx-s*0.15, cy-s*0.75, s*0.3, s*0.2);
-      ctx.fillStyle = '#d4a574'; ctx.beginPath(); ctx.arc(cx, cy-s*0.38, s*0.2, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#7f8c8d'; ctx.beginPath(); ctx.ellipse(cx, cy-s*0.22, s*0.12, s*0.06, 0, 0, Math.PI); ctx.fill();
-      ctx.fillStyle = '#34495e'; ctx.fillRect(cx-s*0.2, cy-s*0.15, s*0.4, s*0.5);
-      ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(cx, cy-s*0.05, s*0.03, 0, Math.PI*2); ctx.fill();
-    }
-  },
-  { id: 'rival', name: '강태공', icon: '🎏', role: '라이벌 어부',
-    color: '#e74c3c', location: 'beach',
-    greeting: '흥, 또 왔어? 오늘은 내가 더 많이 잡을 거야!',
-    dialogs: [
-      { friendship: 0, lines: ['나한테 이길 생각은 하지 마.', '그 장비로 뭘 잡겠다고?'] },
-      { friendship: 20, lines: ['좀 하는데? 인정해줄게.', '이 포인트 알려줄게... 비밀이야.'] },
-      { friendship: 50, lines: ['솔직히 말할게... 넌 나보다 낫어.', '같이 심연에 도전해보지 않을래?'] },
-    ],
-    gifts: { common: 1, uncommon: 2, rare: 6, epic: 10, legendary: 18, mythic: 30 },
-    quest: { id: 'rival_q1', desc: '강태공의 내기: 황금붕어 1마리 잡기', fish: '황금붕어', count: 1, reward: 300, friendReward: 20 },
-    draw: (cx, cy, s) => {
-      ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.ellipse(cx, cy-s*0.6, s*0.28, s*0.1, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#d4a574'; ctx.beginPath(); ctx.arc(cx, cy-s*0.38, s*0.2, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#2c3e50'; ctx.beginPath(); ctx.arc(cx-s*0.07, cy-s*0.42, 2, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx+s*0.07, cy-s*0.42, 2, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#c0392b'; ctx.fillRect(cx-s*0.18, cy-s*0.15, s*0.36, s*0.5);
-      ctx.strokeStyle = '#8B4513'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(cx+s*0.2, cy-s*0.05); ctx.lineTo(cx+s*0.5, cy-s*0.4); ctx.stroke();
-    }
-  },
-  { id: 'mystic', name: '해녀 수연', icon: '🧜‍♀️', role: '신비로운 해녀',
-    color: '#9b59b6', location: 'shrine',
-    greeting: '바다의 속삭임이 들려... 당신에게도 들리나요?',
-    dialogs: [
-      { friendship: 0, lines: ['이 마을엔 고대의 비밀이 잠들어 있어요...', '보름달 밤에 바다가 노래해요.'] },
-      { friendship: 20, lines: ['당신은 특별한 기운이 있어요.', '제가 만든 행운의 부적을 드릴게요.'] },
-      { friendship: 50, lines: ['해신의 사자를 본 적 있나요? 전설이 아니에요.', '이 고대 지도... 심연의 진짜 비밀이에요.'] },
-    ],
-    gifts: { common: 1, uncommon: 4, rare: 12, epic: 18, legendary: 30, mythic: 50 },
-    quest: { id: 'mystic_q1', desc: '수연의 의뢰: 해마 2마리 가져오기', fish: '해마', count: 2, reward: 250, friendReward: 18 },
-    draw: (cx, cy, s) => {
-      ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.moveTo(cx, cy-s*0.7); ctx.lineTo(cx-s*0.25, cy-s*0.45);
-      ctx.lineTo(cx+s*0.25, cy-s*0.45); ctx.fill();
-      ctx.fillStyle = '#f5deb3'; ctx.beginPath(); ctx.arc(cx, cy-s*0.35, s*0.18, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#9b59b6'; ctx.beginPath(); ctx.arc(cx-s*0.06, cy-s*0.38, 2, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx+s*0.06, cy-s*0.38, 2, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.moveTo(cx-s*0.15, cy-s*0.15); ctx.lineTo(cx-s*0.25, cy+s*0.45);
-      ctx.lineTo(cx+s*0.25, cy+s*0.45); ctx.lineTo(cx+s*0.15, cy-s*0.15); ctx.fill();
-    }
-  },
-];
-
-const BUILDINGS = [
-  { id: 'dock', name: '부두', icon: '⚓', x: 0.5, y: 0.75, levels: [
-    { name: '낡은 부두', cost: 0, desc: '작은 배만 정박 가능' },
-    { name: '확장된 부두', cost: 500, desc: '중형 배 정박, 낚시 보너스 +10%' },
-    { name: '대형 항구', cost: 2000, desc: '모든 배 정박, 낚시 보너스 +25%' },
-  ]},
-  { id: 'market', name: '시장', icon: '🏪', x: 0.3, y: 0.45, levels: [
-    { name: '노점', cost: 0, desc: '기본 가격으로 판매' },
-    { name: '어시장', cost: 400, desc: '판매 가격 +20%' },
-    { name: '수산물 센터', cost: 1500, desc: '판매 가격 +50%, 대량 판매 가능' },
-  ]},
-  { id: 'home', name: '집', icon: '🏠', x: 0.7, y: 0.4, levels: [
-    { name: '오두막', cost: 0, desc: '에너지 80, 창고 20칸' },
-    { name: '어부의 집', cost: 600, desc: '에너지 100, 창고 40칸' },
-    { name: '해변 저택', cost: 2500, desc: '에너지 130, 창고 80칸' },
-  ]},
-  { id: 'shrine', name: '해신당', icon: '⛩️', x: 0.15, y: 0.3, levels: [
-    { name: '작은 사당', cost: 0, desc: '기본 축복' },
-    { name: '해신당', cost: 800, desc: '행운 +5%, 날씨 예보' },
-    { name: '용궁의 문', cost: 3000, desc: '행운 +15%, 신비 물고기 출현' },
-  ]},
-];
-
-const QUESTS_POOL = [
-  { id: 'q_catch5', desc: '물고기 5마리 잡기', type: 'catch_any', target: 5, reward: 50, xpReward: 20 },
-  { id: 'q_catch_rare', desc: '희귀 이상 물고기 1마리', type: 'catch_rarity', target: 'rare', count: 1, reward: 150, xpReward: 40 },
-  { id: 'q_sell200', desc: '200G 이상 판매하기', type: 'sell_gold', target: 200, reward: 100, xpReward: 30 },
-  { id: 'q_catch10', desc: '물고기 10마리 잡기', type: 'catch_any', target: 10, reward: 120, xpReward: 50 },
-  { id: 'q_epic', desc: '영웅급 물고기 잡기', type: 'catch_rarity', target: 'epic', count: 1, reward: 300, xpReward: 80 },
-  { id: 'q_legend', desc: '전설급 물고기 잡기', type: 'catch_rarity', target: 'legendary', count: 1, reward: 800, xpReward: 150 },
-];
-
-const TIME_OF_DAY = ['아침', '낮', '저녁', '밤'];
-const TIME_ICONS = ['🌅', '☀️', '🌇', '🌙'];
-const TIME_COLORS = ['#ff7f50', '#87ceeb', '#ff6347', '#191970'];
-const DAYS_PER_SEASON = 7;
-
-// ─── VILLAGE STATE (persistent across runs) ───
-let village = null;
-function defaultVillage() {
-  return {
-    day: 1, season: 0, timeOfDay: 0, // 0=morning,1=noon,2=evening,3=night
-    gold: 100,
-    energy: 80, maxEnergy: 80,
-    buildingLevels: { dock: 0, market: 0, home: 0, shrine: 0 },
-    npcFriendship: { granny: 0, captain: 0, rival: 0, mystic: 0 },
-    npcGifted: {},
-    inventory: [], // {name, rarity, size, goldValue, count}
-    inventoryMax: 20,
-    questsActive: [],
-    questsCompleted: [],
-    achievements: [],
-    totalFishCaught: 0, totalGoldEarned: 0, totalDaysPlayed: 0,
-    fishSoldToday: 0,
-    dailyQuestsDone: 0,
-  };
+// ─── OVERLAYS ───
+function closeAllOverlays() {
+  document.getElementById('inv-overlay').classList.remove('show');
+  document.getElementById('codex-overlay').classList.remove('show');
+  document.getElementById('fishing-overlay').classList.remove('show');
 }
 
-function saveVillage() {
-  if (village) localStorage.setItem('deepcast_village', JSON.stringify(village));
+function showInventory() {
+  closeAllOverlays();
+  const overlay = document.getElementById('inv-overlay');
+  const list = document.getElementById('inv-list');
+  list.innerHTML = '';
+  if (game.inventory.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:#6a6a8e;padding:40px;">소지품이 비어있습니다.<br>낚시를 해서 물고기를 잡으세요!</div>';
+  } else {
+    game.inventory.forEach((item, i) => {
+      const f = FISH.find(f => f.name === item.name) || {};
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `<span class="rarity" style="color:${f.color||'#aaa'}">${item.rarity||'일반'}</span>
+        <span class="name">${item.name} (${item.size}cm)</span>
+        <span class="price">${item.gold}G</span>
+        <button class="sell-btn" data-idx="${i}">팔기</button>`;
+      list.appendChild(row);
+    });
+    list.querySelectorAll('.sell-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx);
+        const item = game.inventory[idx];
+        game.gold += item.gold;
+        game.totalGold += item.gold;
+        game.inventory.splice(idx, 1);
+        save();
+        updateHUD();
+        showInventory(); // refresh
+      });
+    });
+  }
+  overlay.classList.add('show');
 }
-function loadVillage() {
-  try {
-    const d = localStorage.getItem('deepcast_village');
-    if (d) { village = JSON.parse(d); return true; }
-  } catch(e) {}
+document.getElementById('inv-close').addEventListener('click', closeAllOverlays);
+document.getElementById('sell-all-btn').addEventListener('click', () => {
+  let total = 0;
+  for (const item of game.inventory) { total += item.gold; game.totalGold += item.gold; }
+  game.gold += total;
+  game.inventory = [];
+  save();
+  updateHUD();
+  showInventory();
+  if (total > 0) showDialog('시스템', [`💰 물고기를 모두 팔아 ${total}G를 획득했습니다!`]);
+});
+
+function showCodex() {
+  closeAllOverlays();
+  const overlay = document.getElementById('codex-overlay');
+  const list = document.getElementById('codex-list');
+  list.innerHTML = '';
+  const rarityOrder = ['common','uncommon','rare','epic','legendary','mythic'];
+  const rarityNames = {common:'일반',uncommon:'고급',rare:'희귀',epic:'영웅',legendary:'전설',mythic:'신화'};
+  for (const r of rarityOrder) {
+    const fishes = FISH.filter(f => f.rarity === r);
+    for (const f of fishes) {
+      const caught = game.codex.includes(f.name);
+      const row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML = `<span class="rarity" style="color:${caught?f.color:'#333'}">${rarityNames[r]}</span>
+        <span class="name" style="color:${caught?'#c8c8e0':'#333'}">${caught?f.name:'???'}</span>
+        <span class="price">${caught?f.gold+'G':'?'}</span>`;
+      list.appendChild(row);
+    }
+  }
+  overlay.classList.add('show');
+}
+document.getElementById('codex-close').addEventListener('click', closeAllOverlays);
+
+// ─── HUD ───
+function updateHUD() {
+  if (!game) return;
+  document.getElementById('hud-season').textContent = `${SEASON_ICONS[game.season]} ${SEASON_NAMES[game.season]} ${game.day}일`;
+  document.getElementById('hud-time').textContent = `${TIME_ICONS[game.timeOfDay]} ${TIME_NAMES[game.timeOfDay]}`;
+  document.getElementById('hud-weather').textContent = WEATHER_TYPES[game.weather].icon;
+  document.getElementById('hud-gold').textContent = game.gold;
+  document.getElementById('hud-energy').textContent = game.energy;
+}
+
+// ─── TIME SYSTEM ───
+function advanceTime() {
+  game.timeOfDay++;
+  if (game.timeOfDay >= 4) {
+    game.timeOfDay = 0;
+    game.day++;
+    game.energy = game.maxEnergy;
+    game.giftedToday = {};
+    if (game.day > 7) {
+      game.day = 1;
+      game.season = (game.season + 1) % 4;
+    }
+    game.daysPlayed++;
+    game.weather = pickWeather();
+  }
+  save();
+  updateHUD();
+}
+
+function pickWeather() {
+  const total = WEATHER_TYPES.reduce((s,w) => s+w.w, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < WEATHER_TYPES.length; i++) { r -= WEATHER_TYPES[i].w; if (r <= 0) return i; }
+  return 0;
+}
+
+// ─── COLLISION ───
+function isSolid(tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return true;
+  const ground = GROUND[ty]?.[tx];
+  if (ground === 2 || ground === 4) return true; // water
+  for (const obj of OBJECTS) {
+    if (obj.x === tx && obj.y === ty && obj.solid) return true;
+  }
+  for (const npc of NPCS) {
+    if (npc.x === tx && npc.y === ty) return true;
+  }
   return false;
 }
 
-function getSeasonKey() { return SEASON_KEYS[village.season % 4]; }
-function getTimeIcon() { return TIME_ICONS[village.timeOfDay]; }
-function getTimeName() { return TIME_OF_DAY[village.timeOfDay]; }
-function getSellMulti() {
-  const lvl = village.buildingLevels.market;
-  return [1.0, 1.2, 1.5][lvl] || 1.0;
-}
-function getEnergyMax() {
-  const lvl = village.buildingLevels.home;
-  return [80, 100, 130][lvl] || 80;
-}
-function getInvMax() {
-  const lvl = village.buildingLevels.home;
-  return [20, 40, 80][lvl] || 20;
-}
-function getFishingBonus() {
-  const lvl = village.buildingLevels.dock;
-  return [0, 0.10, 0.25][lvl] || 0;
-}
-function getLuckBonus() {
-  const lvl = village.buildingLevels.shrine;
-  return [0, 0.05, 0.15][lvl] || 0;
-}
+// ─── INTERACTION ───
+function interact() {
+  if (!game || dialogActive) return;
+  const dx = [0,0,-1,1][game.dir];
+  const dy = [1,-1,0,0][game.dir];
+  const tx = game.px + dx, ty = game.py + dy;
 
-function advanceTime() {
-  village.timeOfDay++;
-  if (village.timeOfDay >= 4) {
-    village.timeOfDay = 0;
-    village.day++;
-    village.energy = getEnergyMax();
-    village.fishSoldToday = 0;
-    village.dailyQuestsDone = 0;
-    village.npcGifted = {};
-    if (village.day > DAYS_PER_SEASON) {
-      village.day = 1;
-      village.season++;
+  // Check NPC
+  for (const npc of NPCS) {
+    if (npc.x === tx && npc.y === ty) {
+      const fr = game.friendship[npc.id] || 0;
+      const lines = [...npc.dialog];
+      if (fr >= 20) lines.push('(호감도가 올라가고 있어요!)');
+      showDialog(npc.name, lines);
+      return;
     }
-    village.totalDaysPlayed++;
-    currentWeatherKey = pickWeather();
-    initWeatherParticles();
   }
-  saveVillage();
-}
 
-function addToInventory(fish) {
-  if (village.inventory.length >= getInvMax()) return false;
-  village.inventory.push({ name: fish.name, rarity: fish.rarity, size: fish.size, goldValue: fish.goldValue });
-  return true;
-}
-
-function sellFish(idx) {
-  if (idx < 0 || idx >= village.inventory.length) return 0;
-  const f = village.inventory[idx];
-  const gold = Math.floor(f.goldValue * getSellMulti());
-  village.gold += gold;
-  village.totalGoldEarned += gold;
-  village.fishSoldToday += gold;
-  village.inventory.splice(idx, 1);
-  checkQuests('sell_gold', gold);
-  saveVillage();
-  return gold;
-}
-
-function sellAllFish() {
-  let total = 0;
-  while (village.inventory.length > 0) total += sellFish(0);
-  return total;
-}
-
-function checkQuests(type, value) {
-  // Check NPC quests and pool quests
-}
-
-let villageMode = false; // true = village hub mode (non-roguelike)
-let activeNpc = null;
-let dialogLine = 0;
-let villageSubScreen = 'hub'; // hub, npc_dialog, fish_market, building_upgrade, quest_board
-
-// ─── GAME STATE ───
-let gameState = 'title'; // title, intro, char_select, travel_map, traveling, village, fishing, minigame, perk_select, game_over, shop, codex, inventory, npc_dialog, fish_market, building_upgrade, quest_board
-
-// ─── CHARACTER CLASSES ───
-const CLASSES = [
-  {
-    id: 'fisher', name: '노련한 어부', icon: '🎣',
-    desc: '바다에서 태어나 바다에서 자란 어부. 기본기가 탄탄하다.',
-    lore: '30년간 바다를 떠돌며 온갖 물고기를 낚아온 전설의 어부.',
-    color: '#3498db',
-    stats: { hp: 120, lineMax: 120, reelSpeed: 1.0, hookPower: 1.0, luckBonus: 0.05, biteSpeed: 1.3 },
-    passive: '입질 속도 +30%, 줄 내구도 +20%',
-    // Canvas drawing function
-    draw: (cx, cy, size) => {
-      const s = size;
-      // Hat
-      ctx.fillStyle = '#2c3e50';
-      ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.7, s * 0.5, s * 0.15, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillRect(cx - s * 0.25, cy - s * 0.9, s * 0.5, s * 0.25);
-      // Face
-      ctx.fillStyle = '#deb887';
-      ctx.beginPath(); ctx.arc(cx, cy - s * 0.4, s * 0.25, 0, Math.PI * 2); ctx.fill();
-      // Eyes
-      ctx.fillStyle = '#2c3e50';
-      ctx.beginPath(); ctx.arc(cx - s * 0.08, cy - s * 0.45, 2, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx + s * 0.08, cy - s * 0.45, 2, 0, Math.PI * 2); ctx.fill();
-      // Beard
-      ctx.fillStyle = '#7f8c8d';
-      ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.2, s * 0.15, s * 0.1, 0, 0, Math.PI); ctx.fill();
-      // Body (vest)
-      ctx.fillStyle = '#2980b9';
-      ctx.fillRect(cx - s * 0.2, cy - s * 0.15, s * 0.4, s * 0.5);
-      // Arms
-      ctx.fillStyle = '#deb887';
-      ctx.fillRect(cx - s * 0.35, cy - s * 0.1, s * 0.12, s * 0.35);
-      ctx.fillRect(cx + s * 0.23, cy - s * 0.1, s * 0.12, s * 0.35);
-      // Rod in hand
-      ctx.strokeStyle = '#8B4513';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(cx + s * 0.3, cy); ctx.lineTo(cx + s * 0.7, cy - s * 0.6); ctx.stroke();
-      // Boots
-      ctx.fillStyle = '#5D4037';
-      ctx.fillRect(cx - s * 0.2, cy + s * 0.35, s * 0.15, s * 0.12);
-      ctx.fillRect(cx + s * 0.05, cy + s * 0.35, s * 0.15, s * 0.12);
-    }
-  },
-  {
-    id: 'explorer', name: '탐험가', icon: '🧭',
-    desc: '미지의 영역을 찾아 떠나는 모험가. 행운이 따른다.',
-    lore: '세계 곳곳의 전설적인 낚시터를 찾아 헤매는 트레저헌터.',
-    color: '#27ae60',
-    stats: { hp: 100, lineMax: 100, reelSpeed: 1.1, hookPower: 0.9, luckBonus: 0.12, biteSpeed: 1.0 },
-    passive: '희귀 확률 +12%, 이동 시 HP 회복',
-    draw: (cx, cy, size) => {
-      const s = size;
-      // Explorer hat
-      ctx.fillStyle = '#8B6914';
-      ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.65, s * 0.45, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.25, cy - s * 0.65); ctx.lineTo(cx, cy - s * 1); ctx.lineTo(cx + s * 0.25, cy - s * 0.65); ctx.fill();
-      // Face
-      ctx.fillStyle = '#d4a574';
-      ctx.beginPath(); ctx.arc(cx, cy - s * 0.4, s * 0.23, 0, Math.PI * 2); ctx.fill();
-      // Goggles
-      ctx.strokeStyle = '#c0392b';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(cx - s * 0.09, cy - s * 0.44, s * 0.08, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx + s * 0.09, cy - s * 0.44, s * 0.08, 0, Math.PI * 2); ctx.stroke();
-      // Body (jacket)
-      ctx.fillStyle = '#27ae60';
-      ctx.fillRect(cx - s * 0.2, cy - s * 0.15, s * 0.4, s * 0.5);
-      // Belt
-      ctx.fillStyle = '#8B4513';
-      ctx.fillRect(cx - s * 0.22, cy + s * 0.1, s * 0.44, s * 0.06);
-      // Compass on belt
-      ctx.fillStyle = '#f1c40f';
-      ctx.beginPath(); ctx.arc(cx + s * 0.15, cy + s * 0.13, s * 0.04, 0, Math.PI * 2); ctx.fill();
-      // Pants & boots
-      ctx.fillStyle = '#6d4c41';
-      ctx.fillRect(cx - s * 0.18, cy + s * 0.35, s * 0.14, s * 0.14);
-      ctx.fillRect(cx + s * 0.04, cy + s * 0.35, s * 0.14, s * 0.14);
-      // Backpack
-      ctx.fillStyle = '#795548';
-      ctx.fillRect(cx - s * 0.35, cy - s * 0.1, s * 0.12, s * 0.35);
-    }
-  },
-  {
-    id: 'mage', name: '마법사 낚시꾼', icon: '🔮',
-    desc: '마법의 힘으로 물고기를 유혹하는 신비로운 존재.',
-    lore: '심해의 마력을 연구하며 마법 낚싯대를 개발한 마법사.',
-    color: '#8e44ad',
-    stats: { hp: 80, lineMax: 90, reelSpeed: 0.9, hookPower: 1.3, luckBonus: 0.08, biteSpeed: 1.0 },
-    passive: '갈고리 위력 +30%, 크리티컬 기본 15%',
-    draw: (cx, cy, size) => {
-      const s = size;
-      // Wizard hat
-      ctx.fillStyle = '#6c3483';
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy - s * 0.6); ctx.lineTo(cx, cy - s * 1.2); ctx.lineTo(cx + s * 0.3, cy - s * 0.6); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.6, s * 0.35, s * 0.08, 0, 0, Math.PI * 2); ctx.fill();
-      // Star on hat
-      ctx.fillStyle = '#f1c40f';
-      ctx.font = `${s * 0.15}px sans-serif`; ctx.textAlign = 'center'; ctx.fillText('★', cx, cy - s * 0.78);
-      // Face
-      ctx.fillStyle = '#f5deb3';
-      ctx.beginPath(); ctx.arc(cx, cy - s * 0.38, s * 0.2, 0, Math.PI * 2); ctx.fill();
-      // Glowing eyes
-      ctx.fillStyle = '#9b59b6';
-      ctx.beginPath(); ctx.arc(cx - s * 0.07, cy - s * 0.42, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx + s * 0.07, cy - s * 0.42, 2.5, 0, Math.PI * 2); ctx.fill();
-      // Robe
-      ctx.fillStyle = '#8e44ad';
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.15, cy - s * 0.18); ctx.lineTo(cx - s * 0.3, cy + s * 0.5);
-      ctx.lineTo(cx + s * 0.3, cy + s * 0.5); ctx.lineTo(cx + s * 0.15, cy - s * 0.18); ctx.fill();
-      // Magic glow around hands
-      ctx.strokeStyle = 'rgba(155, 89, 182, 0.6)';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(cx + s * 0.25, cy + s * 0.05, s * 0.1, 0, Math.PI * 2); ctx.stroke();
-      // Staff
-      ctx.strokeStyle = '#5D4037';
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy + s * 0.45); ctx.lineTo(cx - s * 0.15, cy - s * 0.5); ctx.stroke();
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath(); ctx.arc(cx - s * 0.15, cy - s * 0.55, s * 0.06, 0, Math.PI * 2); ctx.fill();
-    }
-  },
-  {
-    id: 'pirate', name: '해적', icon: '🏴‍☠️',
-    desc: '약탈과 보물에 눈이 먼 바다의 무법자. 골드를 더 벌어온다.',
-    lore: '은퇴한 해적선장. 전투 본능이 낚시에 녹아들었다.',
-    color: '#c0392b',
-    stats: { hp: 110, lineMax: 110, reelSpeed: 1.2, hookPower: 1.1, luckBonus: 0, biteSpeed: 0.9 },
-    passive: '골드 획득 +60%, 릴 속도 +20%',
-    draw: (cx, cy, size) => {
-      const s = size;
-      // Bandana
-      ctx.fillStyle = '#c0392b';
-      ctx.beginPath(); ctx.ellipse(cx, cy - s * 0.55, s * 0.28, s * 0.12, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#922B21';
-      ctx.beginPath(); ctx.moveTo(cx + s * 0.2, cy - s * 0.55); ctx.lineTo(cx + s * 0.4, cy - s * 0.35);
-      ctx.lineTo(cx + s * 0.35, cy - s * 0.45); ctx.fill();
-      // Face
-      ctx.fillStyle = '#d4a574';
-      ctx.beginPath(); ctx.arc(cx, cy - s * 0.35, s * 0.22, 0, Math.PI * 2); ctx.fill();
-      // Eye patch
-      ctx.fillStyle = '#1a1a2e';
-      ctx.beginPath(); ctx.arc(cx + s * 0.08, cy - s * 0.4, s * 0.06, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#333';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.15, cy - s * 0.5); ctx.lineTo(cx + s * 0.15, cy - s * 0.35); ctx.stroke();
-      // Scar
-      ctx.strokeStyle = '#c0392b';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(cx - s * 0.12, cy - s * 0.3); ctx.lineTo(cx - s * 0.05, cy - s * 0.2); ctx.stroke();
-      // Good eye
-      ctx.fillStyle = '#2c3e50';
-      ctx.beginPath(); ctx.arc(cx - s * 0.08, cy - s * 0.4, 2, 0, Math.PI * 2); ctx.fill();
-      // Body (coat)
-      ctx.fillStyle = '#2c3e50';
-      ctx.fillRect(cx - s * 0.22, cy - s * 0.12, s * 0.44, s * 0.5);
-      // Gold buttons
-      ctx.fillStyle = '#f1c40f';
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath(); ctx.arc(cx, cy + i * s * 0.12, 2, 0, Math.PI * 2); ctx.fill();
+  // Check objects
+  for (const obj of OBJECTS) {
+    if (obj.x === tx && obj.y === ty && obj.interact) {
+      if (obj.interact === 'fish') {
+        startFishing();
+        return;
       }
-      // Hook hand
-      ctx.strokeStyle = '#bdc3c7';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(cx + s * 0.3, cy + s * 0.15); ctx.quadraticCurveTo(cx + s * 0.4, cy + s * 0.25, cx + s * 0.35, cy + s * 0.3); ctx.stroke();
-      // Boots
-      ctx.fillStyle = '#3d2817';
-      ctx.fillRect(cx - s * 0.2, cy + s * 0.38, s * 0.16, s * 0.12);
-      ctx.fillRect(cx + s * 0.04, cy + s * 0.38, s * 0.16, s * 0.12);
-    }
-  },
-];
-
-// ─── STORY / INTRO DATA ───
-const STORY_LINES = [
-  '오래전, 이 바다에는 전설의 물고기가 살았다고 합니다...',
-  '그 물고기를 낚는 자에게 영원한 부와 명예가 주어진다는 소문.',
-  '당신은 작은 항구 마을에서 낡은 낚싯대 하나를 들고,',
-  '아무도 돌아오지 못했다는 심연을 향해 첫 발을 내딛습니다.',
-  '— 전설의 심해어, 리바이어던을 찾아서.',
-];
-
-// ─── TRAVEL DESCRIPTIONS ───
-const TRAVEL_DESC = {
-  '고요한 연못': '마을 뒤편의 잔잔한 연못. 풀벌레 소리가 평화롭다.',
-  '바위 계곡': '험한 산길을 지나 계곡에 도착했다. 급류가 세차게 흐른다.',
-  '어둠의 호수': '안개가 자욱한 숲을 지나니, 검은 호수가 나타났다.',
-  '폭풍의 바다': '절벽 아래 항구에서 작은 배를 타고 바다로 나갔다.',
-  '심연의 균열': '해저 동굴을 지나니... 세상의 끝 같은 심연이 열렸다.',
-};
-
-let selectedClass = null;
-let introLine = 0;
-let introTimer = 0;
-let introAlpha = 0;
-let travelText = '';
-let travelTimer = 0;
-let travelFrom = '';
-let travelTo = '';
-let run = null;
-let bestScore = parseInt(localStorage.getItem('deepcast_best') || '0');
-let totalRuns = parseInt(localStorage.getItem('deepcast_runs') || '0');
-let unlockedFish = JSON.parse(localStorage.getItem('deepcast_codex') || '[]');
-let codexFilter = '전체';
-
-// Weather particles
-let weatherParticles = [];
-let currentWeatherKey = 'clear';
-let stormFlashAlpha = 0;
-
-// ─── UTILITY ───
-function rand(min, max) { return Math.random() * (max - min) + min; }
-function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
-function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
-function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
-function lerp(a, b, t) { return a + (b - a) * t; }
-function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
-
-// ─── VIBRATION FEEDBACK ───
-function vibrate(pattern) {
-  if (navigator.vibrate) navigator.vibrate(pattern);
-}
-
-// ─── WEATHER HELPERS ───
-function pickWeather() {
-  const entries = Object.entries(WEATHER);
-  const totalWeight = entries.reduce((s, [,w]) => s + w.weight, 0);
-  let roll = Math.random() * totalWeight;
-  for (const [key, data] of entries) {
-    roll -= data.weight;
-    if (roll <= 0) return key;
-  }
-  return 'clear';
-}
-
-function initWeatherParticles() {
-  weatherParticles = [];
-  if (currentWeatherKey === 'rain' || currentWeatherKey === 'storm') {
-    const count = isMobile ? 80 : 200;
-    for (let i = 0; i < count; i++) {
-      weatherParticles.push({
-        x: rand(0, canvas.width),
-        y: rand(-canvas.height, canvas.height),
-        speed: rand(8, 14),
-        length: rand(8, 18),
-      });
-    }
-  }
-}
-
-function updateWeatherParticles(dt) {
-  if (currentWeatherKey === 'rain' || currentWeatherKey === 'storm') {
-    for (const p of weatherParticles) {
-      p.x += 2 * 60 * dt;
-      p.y += p.speed * 60 * dt;
-      if (p.y > canvas.height) {
-        p.y = rand(-20, -5);
-        p.x = rand(0, canvas.width);
+      if (obj.interact === 'shop') {
+        showInventory();
+        return;
       }
-      if (p.x > canvas.width) p.x = 0;
+      if (obj.interact === 'enter') {
+        if (obj.id === 'home') {
+          showDialog('시스템', ['집에서 휴식합니다. 에너지가 회복됩니다.', '💤 좋은 꿈을 꿔요...']);
+          advanceTime();
+          return;
+        }
+        if (obj.id === 'shrine') {
+          showDialog('해신당', ['바다의 신이시여, 오늘의 낚시에 행운을...', '✨ 행운이 깃든 느낌이 듭니다!']);
+          return;
+        }
+      }
     }
   }
-  // Storm flash
-  if (currentWeatherKey === 'storm') {
-    if (Math.random() < 0.002) stormFlashAlpha = 0.3;
-    if (stormFlashAlpha > 0) stormFlashAlpha -= dt * 2;
-  } else {
-    stormFlashAlpha = 0;
+
+  // Check fishing spot (standing on water-adjacent sand/dock)
+  const frontGround = GROUND[ty]?.[tx];
+  if (frontGround === 2 || frontGround === 4) {
+    startFishing();
+    return;
   }
 }
 
-function drawWeatherEffects(t) {
-  if (currentWeatherKey === 'rain' || currentWeatherKey === 'storm') {
-    ctx.strokeStyle = 'rgba(170,200,255,0.3)';
-    ctx.lineWidth = 1;
-    for (const p of weatherParticles) {
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.lineTo(p.x + 2, p.y + p.length);
-      ctx.stroke();
-    }
+// ─── FISHING MINIGAME ───
+let fishingActive = false;
+let fishMini = null;
+const fishCanvas = document.getElementById('fishing-canvas');
+const fishCtx = fishCanvas.getContext('2d');
+
+function startFishing() {
+  if (game.energy < 5) {
+    showDialog('시스템', ['에너지가 부족합니다! 집에서 휴식하세요.']);
+    return;
   }
-  if (currentWeatherKey === 'fog') {
-    for (let i = 0; i < 5; i++) {
-      const bandY = canvas.height * (0.2 + i * 0.15) + Math.sin(t * 0.3 + i * 1.5) * 30;
-      ctx.fillStyle = 'rgba(180,200,220,0.06)';
-      ctx.fillRect(0, bandY, canvas.width, 40 + i * 10);
-    }
-  }
-  if (stormFlashAlpha > 0) {
-    ctx.fillStyle = `rgba(255,255,240,${stormFlashAlpha})`;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-}
+  closeAllOverlays();
+  fishingActive = true;
+  document.getElementById('fishing-overlay').classList.add('show');
 
-// ─── SEASON HELPERS ───
-function getCurrentSeason() {
-  if (!run) return SEASONS.spring;
-  const idx = Math.floor(run.seasonCounter / 25) % 4;
-  return SEASONS[SEASON_KEYS[idx]];
-}
-function getCurrentSeasonKey() {
-  if (!run) return 'spring';
-  const idx = Math.floor(run.seasonCounter / 25) % 4;
-  return SEASON_KEYS[idx];
-}
-
-// ─── PARTICLES ───
-let particles = [];
-function spawnParticles(x, y, color, count = 10, spread = 30) {
-  for (let i = 0; i < count; i++) {
-    particles.push({
-      x, y, vx: rand(-spread, spread) / 10, vy: rand(-spread, 5) / 10,
-      life: rand(0.5, 1.5), maxLife: 1.5, size: rand(2, 5), color, alpha: 1
-    });
-  }
-}
-function updateParticles(dt) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx * 60 * dt;
-    p.y += p.vy * 60 * dt;
-    p.vy += 0.05 * 60 * dt;
-    p.life -= dt;
-    p.alpha = clamp(p.life / p.maxLife, 0, 1);
-    if (p.life <= 0) particles.splice(i, 1);
-  }
-}
-function drawParticles() {
-  for (const p of particles) {
-    ctx.globalAlpha = p.alpha;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-// ─── WATER ANIMATION ───
-let waterOffset = 0;
-function drawWater(y, h, baseColor, t) {
-  waterOffset += 0.01;
-  const grad = ctx.createLinearGradient(0, y, 0, y + h);
-  grad.addColorStop(0, baseColor || COLORS.water);
-  grad.addColorStop(1, COLORS.waterDeep);
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, y, canvas.width, h);
-
-  // wave lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 8; i++) {
-    ctx.beginPath();
-    const waveY = y + 20 + i * (h / 8);
-    for (let x = 0; x < canvas.width; x += 5) {
-      const offset = Math.sin((x + waterOffset * 200 + i * 100) * 0.01) * (6 + i * 2);
-      if (x === 0) ctx.moveTo(x, waveY + offset);
-      else ctx.lineTo(x, waveY + offset);
-    }
-    ctx.stroke();
-  }
-}
-
-// ─── STARFIELD ───
-let stars = [];
-function initStars() {
-  stars = [];
-  for (let i = 0; i < 120; i++) {
-    stars.push({ x: rand(0, 2000), y: rand(0, 400), size: rand(0.5, 2.5), twinkle: rand(0, Math.PI * 2), speed: rand(0.5, 2) });
-  }
-}
-initStars();
-
-function drawStars(t) {
-  for (const s of stars) {
-    const alpha = 0.3 + Math.sin(s.twinkle + t * s.speed) * 0.3;
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(s.x * canvas.width / 2000, s.y * canvas.height / 800, s.size, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-// ─── TEXT UTILS ───
-function drawText(text, x, y, { size = 16, color = COLORS.uiText, align = 'left', baseline = 'top', shadow = false, font = '' } = {}) {
-  ctx.font = `${font} ${size}px 'Segoe UI', sans-serif`;
-  ctx.textAlign = align;
-  ctx.textBaseline = baseline;
-  if (shadow) {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillText(text, x + 2, y + 2);
-  }
-  ctx.fillStyle = color;
-  ctx.fillText(text, x, y);
-}
-
-function drawPanel(x, y, w, h, { fill = COLORS.ui, border = COLORS.uiBorder, radius = 8, alpha = 0.92 } = {}) {
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = fill;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, h, radius);
-  ctx.fill();
-  ctx.strokeStyle = border;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-}
-
-function drawBar(x, y, w, h, value, max, fgColor, bgColor, label = '') {
-  ctx.fillStyle = bgColor;
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, 4); ctx.fill();
-  const fillW = clamp(value / max, 0, 1) * w;
-  ctx.fillStyle = fgColor;
-  ctx.beginPath(); ctx.roundRect(x, y, fillW, h, 4); ctx.fill();
-  if (label) drawText(label, x + w / 2, y + h / 2, { size: 11, align: 'center', baseline: 'middle', color: '#fff' });
-}
-
-// ─── BUTTON SYSTEM ───
-let buttons = [];
-let hoveredBtn = null;
-function clearButtons() { buttons = []; hoveredBtn = null; }
-function addButton(id, x, y, w, h, label, opts = {}) {
-  buttons.push({ id, x, y, w, h, label, ...opts });
-}
-function drawButtons(t) {
-  for (const b of buttons) {
-    const hovered = hoveredBtn === b.id;
-    const baseColor = b.color || COLORS.accent;
-    const bColor = hovered ? COLORS.accentLight : baseColor;
-    ctx.fillStyle = bColor;
-    ctx.globalAlpha = b.disabled ? 0.4 : 0.9;
-    ctx.beginPath(); ctx.roundRect(b.x, b.y, b.w, b.h, 6); ctx.fill();
-    ctx.strokeStyle = hovered ? '#fff' : 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = hovered ? 2 : 1;
-    ctx.stroke();
-    ctx.globalAlpha = b.disabled ? 0.4 : 1;
-    drawText(b.label, b.x + b.w / 2, b.y + b.h / 2, { size: b.fontSize || 15, align: 'center', baseline: 'middle', color: '#fff', font: 'bold' });
-    if (b.sub) {
-      drawText(b.sub, b.x + b.w / 2, b.y + b.h - 8, { size: 10, align: 'center', baseline: 'bottom', color: 'rgba(255,255,255,0.6)' });
-    }
-    ctx.globalAlpha = 1;
-  }
-}
-
-// ─── MOBILE DETECTION & SCALING ───
-const isMobile = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window);
-function getScale() {
-  if (!isMobile) return 1;
-  const minDim = Math.min(canvas.width, canvas.height);
-  if (minDim < 400) return 0.65;
-  if (minDim < 600) return 0.8;
-  return 0.9;
-}
-
-// ─── INPUT ───
-let mouse = { x: 0, y: 0, down: false, clicked: false };
-let keys = {};
-
-function updateHover(x, y) {
-  mouse.x = x; mouse.y = y;
-  hoveredBtn = null;
-  for (const b of buttons) {
-    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
-      hoveredBtn = b.id;
-      break;
-    }
-  }
-}
-
-// Mouse events (desktop)
-canvas.addEventListener('mousemove', e => { updateHover(e.clientX, e.clientY); });
-canvas.addEventListener('mousedown', e => { mouse.down = true; mouse.clicked = true; });
-canvas.addEventListener('mouseup', e => { mouse.down = false; });
-
-// Touch events (mobile)
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  const t = e.touches[0];
-  updateHover(t.clientX, t.clientY);
-  mouse.down = true;
-  mouse.clicked = true;
-}, { passive: false });
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault();
-  const t = e.touches[0];
-  updateHover(t.clientX, t.clientY);
-}, { passive: false });
-canvas.addEventListener('touchend', e => {
-  e.preventDefault();
-  mouse.down = false;
-}, { passive: false });
-canvas.addEventListener('touchcancel', e => { mouse.down = false; });
-
-window.addEventListener('keydown', e => { keys[e.code] = true; });
-window.addEventListener('keyup', e => { keys[e.code] = false; });
-
-function consumeClick() {
-  if (!mouse.clicked) return null;
-  mouse.clicked = false;
-  for (const b of buttons) {
-    if (mouse.x >= b.x && mouse.x <= b.x + b.w && mouse.y >= b.y && mouse.y <= b.y + b.h && !b.disabled) {
-      return b.id;
-    }
-  }
-  return '__none__';
-}
-
-// ─── NEW RUN ───
-function newRun(charClass) {
-  const cls = charClass || CLASSES[0];
-  selectedClass = cls;
-  run = {
-    hp: cls.stats.hp, maxHp: cls.stats.hp,
-    gold: 0, score: 0, level: 1, xp: 0, xpToNext: 40,
-    fishCaught: [], inventory: [], perks: [],
-    lineMax: cls.stats.lineMax, line: cls.stats.lineMax, reelSpeed: cls.stats.reelSpeed, hookPower: cls.stats.hookPower,
-    luckBonus: cls.stats.luckBonus, biteSpeed: cls.stats.biteSpeed, castRange: 100,
-    healOnCatch: cls.id === 'explorer' ? 3 : 0,
-    goldMulti: cls.id === 'pirate' ? 1.6 : 1,
-    damageReduce: 0,
-    comboBonus: 0, combo: 0, hasSonar: false, doubleCatchChance: 0,
-    location: null, depth: 0, turn: 0, fishCount: 0,
-    tempFight: 1, tempRarity: 0, tempGold: 1, tempBiteSpeed: 1, tempDmg: 1,
-    activeEvent: null, eventTimer: 0,
-    eventChance: 0.10,
-    // New stats
-    stormImmune: false,
-    timerMulti: 1,
-    critChance: cls.id === 'mage' ? 0.15 : 0,
-    commonGoldMulti: 1,
-    hasAdrenaline: false,
-    // Season
-    seasonCounter: 0,
-    // Equipment
-    equipTier: { rod: 0, reel: 0, bait: 0 },
-    // Boss tracking
-    bossActive: false,
-    // Character
-    charClass: cls,
-    // minigame state
-    mg: null,
-  };
-  currentWeatherKey = 'clear';
-  totalRuns++;
-  localStorage.setItem('deepcast_runs', totalRuns);
-  // Initialize village if not loaded
-  if (!village) {
-    if (!loadVillage()) village = defaultVillage();
-  }
-  village.energy = getEnergyMax();
-  gameState = 'village';
-}
-
-// ─── GENERATE FISH FOR CATCH ───
-function generateFish(location) {
-  const weather = WEATHER[currentWeatherKey];
-  const season = getCurrentSeason();
-  const rarityBonus = location.rarityBonus + run.luckBonus + run.tempRarity + weather.rarityMod + season.rarityMod;
+  // Pick a fish
+  const seasonKey = SEASON_KEYS[game.season];
+  const available = FISH.filter(f => f.season === 'all' || f.season === seasonKey);
 
   let roll = Math.random();
   let selectedRarity = 'common';
-  const rarities = Object.entries(RARITY);
-  // reverse so we check rarest first
-  for (let i = rarities.length - 1; i >= 0; i--) {
-    const [key, data] = rarities[i];
-    const adjustedChance = data.chance + (key !== 'common' ? rarityBonus * data.chance : 0);
-    if (roll < adjustedChance) { selectedRarity = key; break; }
-    roll -= adjustedChance;
+  for (const [r, chance] of Object.entries(RARITY_CHANCES)) {
+    if (roll < chance) { selectedRarity = r; break; }
+    roll -= chance;
   }
 
-  const candidates = FISH_DATA.filter(f => f.rarity === selectedRarity);
-  if (candidates.length === 0) return generateFish(location); // fallback
-  const template = pick(candidates);
-  const size = randInt(template.minSize, template.maxSize);
-  const sizeMulti = size / template.minSize;
+  let candidates = available.filter(f => f.rarity === selectedRarity);
+  if (candidates.length === 0) candidates = available.filter(f => f.rarity === 'common');
+  const template = candidates[Math.floor(Math.random() * candidates.length)];
+  const size = Math.floor(Math.random() * (template.maxSize - template.minSize) + template.minSize);
 
-  const goldValue = Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti * run.goldMulti * run.tempGold * weather.goldMod * season.goldMod * (selectedRarity === 'common' ? run.commonGoldMulti : 1));
-
-  return {
-    ...template,
+  fishMini = {
+    fish: template,
     size,
-    actualFight: template.fight * sizeMulti * run.tempFight * weather.fightMod * season.fightMod * (1 + location.depth * 0.15),
-    goldValue,
-    scoreValue: Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti),
-    rarityData: RARITY[template.rarity],
-  };
-}
-
-// ─── BOSS FISH GENERATION ───
-function generateBossFish(location) {
-  let bossIdx = 0;
-  if (location.depth <= 2) bossIdx = 0;
-  else if (location.depth === 3) bossIdx = 1;
-  else if (location.depth === 4) bossIdx = 2;
-  else bossIdx = 3;
-
-  const template = BOSS_FISH[bossIdx];
-  const size = randInt(Math.floor(template.minSize * BOSS_CONFIG.sizeMulti), Math.floor(template.maxSize * BOSS_CONFIG.sizeMulti));
-  const sizeMulti = size / template.minSize;
-  const weather = WEATHER[currentWeatherKey];
-  const season = getCurrentSeason();
-
-  return {
-    ...template,
-    size,
-    isBoss: true,
-    actualFight: template.fight * sizeMulti * run.tempFight * weather.fightMod * season.fightMod * (1 + location.depth * 0.15) * BOSS_CONFIG.hpMulti,
-    goldValue: Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti * run.goldMulti * run.tempGold * weather.goldMod * season.goldMod * BOSS_CONFIG.goldMulti),
-    scoreValue: Math.floor(template.baseGold * sizeMulti * RARITY[template.rarity].scoreMulti * BOSS_CONFIG.xpMulti),
-    rarityData: RARITY[template.rarity],
-  };
-}
-
-function shouldSpawnBoss() {
-  if (run.fishCount < BOSS_CONFIG.firstBossAt) return false;
-  return run.fishCount % BOSS_CONFIG.spawnEvery === 0;
-}
-
-// ─── MINIGAME ───
-function startMinigame(fish) {
-  const difficulty = fish.actualFight;
-  const isBoss = !!fish.isBoss;
-  const czSize = clamp(120 - difficulty * 6, 35, 120) * (isBoss ? BOSS_CONFIG.catchZonePenalty : 1);
-  const timer = (15 + fish.size * 0.02 + (isBoss ? BOSS_CONFIG.timerBonus : 0)) * (run.timerMulti || 1);
-  run.mg = {
-    fish,
-    isBoss,
-    // Reel bar: player must keep marker in catch zone
-    barHeight: 300,
-    catchZoneSize: czSize,
+    goldValue: Math.floor(template.gold * (size / template.minSize)),
+    // Minigame state
+    barH: 300,
+    catchZoneSize: Math.max(40, 120 - template.diff * 8),
     catchZoneY: 100,
-    catchZoneVel: (1.5 + difficulty * 0.3) * (Math.random() > 0.5 ? 1 : -1),
-    markerY: 150,
-    markerVel: 0,
-    // Progress
-    progress: 0, // 0-100, reach 100 to catch
-    progressDecay: 0.25 + difficulty * 0.04,
-    progressGain: 0.9,
-    // Line tension
-    tension: 0,
-    maxTension: run.lineMax,
-    // Timer
-    timer: timer,
-    maxTimer: timer,
-    // Result
-    result: null, // 'caught' or 'escaped' or 'broken'
-    resultTimer: 0,
-    // Visual
-    fishX: canvas.width / 2 + rand(-80, 80),
-    fishY: canvas.height / 2 + rand(-30, 30),
-    splashTimer: 0,
+    catchZoneVel: (1.5 + template.diff * 0.3) * (Math.random()>0.5?1:-1),
+    markerY: 150, markerVel: 0,
+    progress: 0,
+    tension: 0, maxTension: 100,
+    timer: 15,
+    result: null, resultTimer: 0,
+    touching: false,
+    phase: 'waiting', // waiting, reeling, done
+    waitTimer: Math.random() * 3 + 1,
+    biteAnim: 0,
   };
-  run.bossActive = isBoss;
-  if (isBoss) vibrate([200,50,200]);
-  gameState = 'minigame';
 }
 
-// ─── LEVEL UP / PERK ───
-function checkLevelUp() {
-  if (run.xp >= run.xpToNext) {
-    run.xp -= run.xpToNext;
-    run.level++;
-    run.xpToNext = Math.floor(run.xpToNext * 1.35);
-    run.maxHp += 7;
-    run.hp = Math.min(run.hp + 20, run.maxHp);
-    vibrate([40,40,40,40,120]);
-    // offer perk selection
-    offerPerks();
-    return true;
+function updateFishing(dt) {
+  if (!fishMini) return;
+  const fm = fishMini;
+
+  if (fm.phase === 'waiting') {
+    fm.waitTimer -= dt;
+    fm.biteAnim += dt;
+    if (fm.waitTimer <= 0) fm.phase = 'bite';
+    return;
   }
-  return false;
-}
 
-let perkChoices = [];
-function offerPerks() {
-  const available = PERKS.filter(p => !run.perks.includes(p.id));
-  perkChoices = [];
-  const count = Math.min(3, available.length);
-  const shuffled = [...available].sort(() => Math.random() - 0.5);
-  for (let i = 0; i < count; i++) perkChoices.push(shuffled[i]);
-  if (perkChoices.length > 0) gameState = 'perk_select';
-}
-
-function selectPerk(perk) {
-  perk.apply(run);
-  run.perks.push(perk.id);
-  gameState = 'fishing';
-}
-
-// ─── RANDOM EVENT ───
-function checkRandomEvent() {
-  if (run.activeEvent) return;
-  if (Math.random() < (run.eventChance || 0.10)) {
-    const event = pick(EVENTS);
-    run.activeEvent = event;
-    run.eventTimer = event.duration;
-    event.effect(run);
-  }
-}
-
-// ─── EQUIPMENT HELPERS ───
-function getEquipBonus(slot) {
-  if (!run) return {};
-  const tier = run.equipTier[slot];
-  return EQUIPMENT[slot].tiers[tier];
-}
-function applyEquipmentStats() {
-  // Equipment stats are additive on base stats
-  const rod = getEquipBonus('rod');
-  const reel = getEquipBonus('reel');
-  const bait = getEquipBonus('bait');
-  // These are applied freshly each time equipment is upgraded
-  // We store base values separately or apply as additive bonuses
-}
-
-// ─── SCENE: INTRO ───
-function updateIntro(dt, t) {
-  clearButtons();
-  introTimer += dt;
-
-  // Fade in current line
-  if (introAlpha < 1) introAlpha = Math.min(1, introAlpha + dt * 1.5);
-
-  // Auto-advance after 3s or on click/tap
-  const clicked = consumeClick();
-  if (clicked || introTimer > 3.5) {
-    introLine++;
-    introTimer = 0;
-    introAlpha = 0;
-    if (introLine >= STORY_LINES.length) {
-      gameState = 'char_select';
+  if (fm.phase === 'bite') {
+    fm.biteAnim += dt * 5;
+    // Player must tap/click to hook
+    if (fm.touching || actionPressed) {
+      fm.phase = 'reeling';
+      actionPressed = false;
     }
-  }
-}
-
-function drawIntro(t) {
-  ctx.fillStyle = '#050510';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Subtle stars
-  drawStars(t);
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  // Story text
-  if (introLine < STORY_LINES.length) {
-    ctx.globalAlpha = introAlpha;
-    drawText(STORY_LINES[introLine], cx, cy, {
-      size: isMobile ? 15 : 20, align: 'center', baseline: 'middle',
-      color: '#c8c8e0', font: '', shadow: true
-    });
-    ctx.globalAlpha = 1;
-  }
-
-  // Progress dots
-  const dotY = cy + 60;
-  for (let i = 0; i < STORY_LINES.length; i++) {
-    ctx.fillStyle = i <= introLine ? COLORS.accentLight : '#333';
-    ctx.beginPath();
-    ctx.arc(cx - (STORY_LINES.length - 1) * 8 + i * 16, dotY, 4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  // Skip hint
-  const skipAlpha = 0.3 + Math.sin(t * 2) * 0.2;
-  ctx.globalAlpha = skipAlpha;
-  drawText(isMobile ? '탭하여 넘기기' : '클릭하여 넘기기', cx, canvas.height - 40, {
-    size: 12, align: 'center', color: COLORS.uiTextDim
-  });
-  ctx.globalAlpha = 1;
-}
-
-// ─── SCENE: CHARACTER SELECT ───
-let charSelectHover = -1;
-function updateCharSelect(dt, t) {
-  clearButtons();
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  if (isMobile || canvas.width < 800) {
-    // Vertical layout
-    const cardW = Math.min(300, canvas.width - 30);
-    const cardH = 80;
-    const startY = 100;
-    for (let i = 0; i < CLASSES.length; i++) {
-      const cls = CLASSES[i];
-      addButton('class_' + i, cx - cardW / 2, startY + i * (cardH + 12), cardW, cardH,
-        `${cls.icon} ${cls.name}`, { sub: cls.passive, fontSize: 16, color: cls.color });
-    }
-  } else {
-    // Horizontal layout
-    const cardW = 190;
-    const cardH = 280;
-    const totalW = CLASSES.length * (cardW + 15) - 15;
-    const startX = cx - totalW / 2;
-    for (let i = 0; i < CLASSES.length; i++) {
-      const cls = CLASSES[i];
-      addButton('class_' + i, startX + i * (cardW + 15), cy - cardH / 2 + 30, cardW, cardH,
-        `${cls.icon} ${cls.name}`, { sub: cls.passive, fontSize: 16, color: cls.color });
-    }
-  }
-
-  const clicked = consumeClick();
-  if (clicked && clicked.startsWith('class_')) {
-    const idx = parseInt(clicked.split('_')[1]);
-    newRun(CLASSES[idx]);
-  }
-}
-
-function drawCharSelect(t) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawStars(t);
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  drawText('⚔️ 모험가를 선택하세요', cx, isMobile ? 40 : 50, {
-    size: isMobile ? 22 : 30, align: 'center', color: COLORS.accentLight, font: 'bold', shadow: true
-  });
-  drawText('각 캐릭터마다 고유한 능력과 플레이스타일이 있습니다', cx, isMobile ? 68 : 90, {
-    size: isMobile ? 11 : 14, align: 'center', color: COLORS.uiTextDim
-  });
-
-  // Draw character portraits on desktop (inside button areas)
-  if (!isMobile && canvas.width >= 800) {
-    const cardW = 190;
-    const cardH = 280;
-    const totalW = CLASSES.length * (cardW + 15) - 15;
-    const startX = cx - totalW / 2;
-    for (let i = 0; i < CLASSES.length; i++) {
-      const cls = CLASSES[i];
-      const bx = startX + i * (cardW + 15);
-      const by = cy - cardH / 2 + 30;
-      // Draw character portrait
-      ctx.save();
-      cls.draw(bx + cardW / 2, by + 80, 55);
-      ctx.restore();
-      // Stats below portrait
-      drawText(cls.desc, bx + cardW / 2, by + 145, { size: 10, align: 'center', color: COLORS.uiTextDim });
-      drawText(`❤️${cls.stats.hp} 🧵${cls.stats.lineMax} ⚡${cls.stats.reelSpeed}x`, bx + cardW / 2, by + 165, {
-        size: 10, align: 'center', color: COLORS.uiText
-      });
-      drawText(`🪝${cls.stats.hookPower}x 🍀+${(cls.stats.luckBonus * 100).toFixed(0)}%`, bx + cardW / 2, by + 182, {
-        size: 10, align: 'center', color: COLORS.uiText
-      });
-    }
-  }
-
-  drawButtons(t);
-}
-
-// ─── SCENE: TRAVEL MAP (replaces location_select) ───
-// This now draws a visual map with connected nodes
-
-// ─── SCENE: TRAVELING (transition animation) ───
-function updateTraveling(dt, t) {
-  clearButtons();
-  travelTimer -= dt;
-  if (travelTimer <= 0) {
-    gameState = 'fishing';
-    resetFishing();
-  }
-}
-
-function drawTraveling(t) {
-  ctx.fillStyle = '#050510';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawStars(t);
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  // Animated boat/walking
-  const progress = 1 - (travelTimer / 2.5);
-  const boatX = lerp(cx - 200, cx + 200, easeOut(clamp(progress, 0, 1)));
-  const waveY = Math.sin(t * 4) * 5;
-
-  // Water below
-  const waterY = cy + 40;
-  drawWater(waterY, canvas.height - waterY, run.location.waterColor, t);
-
-  // Boat silhouette
-  ctx.fillStyle = '#3d2817';
-  ctx.beginPath();
-  ctx.moveTo(boatX - 30, waterY + waveY);
-  ctx.lineTo(boatX - 40, waterY + waveY - 8);
-  ctx.lineTo(boatX + 40, waterY + waveY - 8);
-  ctx.lineTo(boatX + 30, waterY + waveY);
-  ctx.closePath();
-  ctx.fill();
-  // Mast
-  ctx.strokeStyle = '#5D4037';
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(boatX, waterY + waveY - 8); ctx.lineTo(boatX, waterY + waveY - 50); ctx.stroke();
-  // Sail
-  ctx.fillStyle = 'rgba(200,200,220,0.6)';
-  ctx.beginPath();
-  ctx.moveTo(boatX, waterY + waveY - 48); ctx.lineTo(boatX + 25, waterY + waveY - 30); ctx.lineTo(boatX, waterY + waveY - 15);
-  ctx.fill();
-
-  // Draw character on boat
-  if (selectedClass) {
-    ctx.save();
-    selectedClass.draw(boatX - 5, waterY + waveY - 28, 18);
-    ctx.restore();
-  }
-
-  // Travel text
-  drawText(`${run.location.name}(으)로 이동 중...`, cx, cy - 60, {
-    size: isMobile ? 18 : 22, align: 'center', color: COLORS.accentLight, font: 'bold', shadow: true
-  });
-
-  const desc = TRAVEL_DESC[run.location.name] || '';
-  ctx.globalAlpha = Math.min(1, progress * 3);
-  drawText(desc, cx, cy - 25, {
-    size: isMobile ? 12 : 15, align: 'center', color: COLORS.uiTextDim
-  });
-  ctx.globalAlpha = 1;
-
-  // Loading dots
-  const dots = '.'.repeat(Math.floor(t * 2) % 4);
-  drawText(dots, cx + (isMobile ? 100 : 130), cy - 60, {
-    size: isMobile ? 18 : 22, color: COLORS.accentLight
-  });
-
-  drawParticles();
-}
-
-// ─── SCENE: TITLE ───
-let titleAnim = 0;
-function updateTitle(dt, t) {
-  titleAnim += dt;
-  clearButtons();
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  const bw = isMobile ? Math.min(280, canvas.width * 0.7) : 240;
-  const bh = isMobile ? 56 : 50;
-  const hasSave = localStorage.getItem('deepcast_village') !== null;
-  let btnY = cy + 40;
-  if (hasSave) {
-    addButton('continue', cx - bw / 2, btnY, bw, bh, '▶️ 이어하기', { fontSize: isMobile ? 20 : 18 });
-    btnY += bh + 12;
-  }
-  addButton('start', cx - bw / 2, btnY, bw, bh, '🎣 새로운 모험', { fontSize: isMobile ? (hasSave ? 16 : 20) : (hasSave ? 14 : 18), color: hasSave ? '#2d3436' : undefined });
-  btnY += bh + 12;
-  addButton('codex', cx - bw / 2, btnY, bw, bh - 5, '📖 도감 (' + unlockedFish.length + '/' + FISH_DATA.length + ')', { color: '#2d3436' });
-
-  const clicked = consumeClick();
-  if (clicked === 'continue') {
-    loadVillage();
-    if (!run) {
-      // Recreate a basic run from saved class or default
-      newRun(CLASSES[0]);
-    }
-    gameState = 'village';
-  }
-  if (clicked === 'start') {
-    localStorage.removeItem('deepcast_village');
-    village = null;
-    introLine = 0; introTimer = 0; introAlpha = 0; gameState = 'intro';
-  }
-  if (clicked === 'codex') gameState = 'codex';
-}
-
-function drawTitle(t) {
-  // Sky
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  skyGrad.addColorStop(0, COLORS.skyGrad1);
-  skyGrad.addColorStop(0.5, COLORS.skyGrad2);
-  skyGrad.addColorStop(1, COLORS.waterDeep);
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawStars(t);
-
-  // Water
-  const waterY = canvas.height * 0.55;
-  drawWater(waterY, canvas.height - waterY, null, t);
-
-  // Moon
-  const moonX = canvas.width * 0.75;
-  const moonY = canvas.height * 0.18;
-  ctx.fillStyle = 'rgba(255,255,220,0.15)';
-  ctx.beginPath(); ctx.arc(moonX, moonY, 80, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,220,0.6)';
-  ctx.beginPath(); ctx.arc(moonX, moonY, 35, 0, Math.PI * 2); ctx.fill();
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  // Title
-  const bounce = Math.sin(t * 2) * 5;
-  const titleSize = isMobile ? Math.min(36, canvas.width * 0.08) : 52;
-  drawText('🌊 DEEP CAST 🎣', cx, cy - 100 + bounce, { size: titleSize, align: 'center', baseline: 'middle', color: COLORS.accentLight, font: 'bold', shadow: true });
-  drawText('로그라이크 낚시 어드벤처', cx, cy - 40, { size: isMobile ? 14 : 18, align: 'center', baseline: 'middle', color: COLORS.uiTextDim });
-
-  if (bestScore > 0) {
-    drawText(`최고 점수: ${bestScore.toLocaleString()} | 총 도전: ${totalRuns}회`, cx, cy + 20, { size: 14, align: 'center', baseline: 'middle', color: COLORS.gold });
-  }
-
-  drawButtons(t);
-}
-
-// ─── SCENE: CODEX (Enhanced Card Grid) ───
-let codexScroll = 0;
-function updateCodex(dt) {
-  clearButtons();
-  addButton('back', 30, 30, 100, 36, '← 돌아가기', { color: '#2d3436' });
-
-  // Rarity filter tabs
-  const filterNames = ['전체', '일반', '고급', '희귀', '영웅', '전설', '신화'];
-  const tabW = isMobile ? 48 : 58;
-  const tabH = 28;
-  const tabStartX = isMobile ? 10 : canvas.width / 2 - (filterNames.length * (tabW + 5)) / 2;
-  const tabY = 75;
-  for (let i = 0; i < filterNames.length; i++) {
-    const isActive = codexFilter === filterNames[i];
-    addButton('filter_' + i, tabStartX + i * (tabW + 5), tabY, tabW, tabH, filterNames[i], {
-      fontSize: isMobile ? 10 : 11,
-      color: isActive ? COLORS.accent : '#333',
-    });
-  }
-
-  const clicked = consumeClick();
-  if (clicked === 'back') { gameState = run ? 'fishing' : 'title'; codexScroll = 0; codexFilter = '전체'; }
-  if (clicked && clicked.startsWith('filter_')) {
-    const idx = parseInt(clicked.split('_')[1]);
-    codexFilter = filterNames[idx];
-  }
-  if (keys['Escape']) { gameState = run ? 'fishing' : 'title'; codexScroll = 0; codexFilter = '전체'; keys['Escape'] = false; }
-}
-
-function drawCodex(t) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawText('📖 물고기 도감', canvas.width / 2, 40, { size: 28, align: 'center', color: COLORS.accentLight, font: 'bold' });
-
-  // Progress bar
-  const caughtCount = unlockedFish.length;
-  const totalCount = FISH_DATA.length;
-  const progW = isMobile ? canvas.width - 40 : 400;
-  const progX = canvas.width / 2 - progW / 2;
-  drawBar(progX, 58, progW, 14, caughtCount, totalCount, COLORS.accent, COLORS.uiBorder, `${caughtCount}/${totalCount} 수집 완료`);
-
-  // Filter
-  const rarityKeyMap = { '전체': null, '일반': 'common', '고급': 'uncommon', '희귀': 'rare', '영웅': 'epic', '전설': 'legendary', '신화': 'mythic' };
-  const filterKey = rarityKeyMap[codexFilter];
-  const filteredFish = filterKey ? FISH_DATA.filter(f => f.rarity === filterKey) : FISH_DATA;
-
-  // Card grid
-  const cols = isMobile ? 2 : 3;
-  const cardW = isMobile ? (canvas.width - 30) / 2 - 5 : 180;
-  const cardH = isMobile ? 90 : 110;
-  const gap = 10;
-  const gridStartX = isMobile ? 15 : canvas.width / 2 - (cols * (cardW + gap) - gap) / 2;
-  const gridStartY = 115;
-
-  for (let i = 0; i < filteredFish.length; i++) {
-    const fish = filteredFish[i];
-    const caught = unlockedFish.includes(fish.name);
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const cx = gridStartX + col * (cardW + gap);
-    const cy = gridStartY + row * (cardH + gap);
-
-    if (cy > canvas.height + 50) break; // off screen
-    if (cy + cardH < 0) continue;
-
-    const rData = RARITY[fish.rarity];
-    const borderColor = caught ? rData.color : '#222';
-    const fillColor = caught ? 'rgba(26,26,46,0.95)' : 'rgba(15,15,25,0.95)';
-
-    // Card
-    drawPanel(cx, cy, cardW, cardH, { fill: fillColor, border: borderColor, radius: 6 });
-
-    // Fish silhouette
-    const fishCX = cx + cardW * 0.25;
-    const fishCY = cy + cardH * 0.45;
-    const fishSz = isMobile ? 16 : 22;
-    ctx.globalAlpha = caught ? 0.7 : 0.15;
-    ctx.fillStyle = caught ? rData.color : '#444';
-    ctx.beginPath();
-    ctx.ellipse(fishCX, fishCY, fishSz, fishSz * 0.45, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // tail
-    ctx.beginPath();
-    ctx.moveTo(fishCX - fishSz, fishCY);
-    ctx.lineTo(fishCX - fishSz - fishSz * 0.4, fishCY - fishSz * 0.3);
-    ctx.lineTo(fishCX - fishSz - fishSz * 0.4, fishCY + fishSz * 0.3);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Name
-    const name = caught ? fish.name : '???';
-    drawText(name, cx + cardW * 0.55, cy + 12, { size: isMobile ? 11 : 13, color: caught ? '#fff' : '#444', font: 'bold' });
-
-    // Rarity tag
-    drawText(rData.name, cx + cardW * 0.55, cy + (isMobile ? 28 : 30), { size: isMobile ? 9 : 10, color: caught ? rData.color : '#333' });
-
-    // Size range
-    if (caught) {
-      drawText(`${fish.minSize}-${fish.maxSize}cm`, cx + cardW * 0.55, cy + (isMobile ? 42 : 48), { size: isMobile ? 9 : 10, color: COLORS.uiTextDim });
-      drawText(`💰 ${fish.baseGold}`, cx + cardW * 0.55, cy + (isMobile ? 56 : 64), { size: isMobile ? 9 : 10, color: COLORS.gold });
-    }
-  }
-
-  drawButtons(t);
-}
-
-// ─── SCENE: TRAVEL MAP (visual map with connected nodes) ───
-function updateLocationSelect(dt) {
-  clearButtons();
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  // Map node positions
-  const mapW = isMobile ? canvas.width - 60 : Math.min(700, canvas.width - 100);
-  const mapH = isMobile ? canvas.height - 200 : 350;
-  const mapX = cx - mapW / 2;
-  const mapY = isMobile ? 120 : 150;
-
-  const nodePositions = [
-    { x: mapX + mapW * 0.08, y: mapY + mapH * 0.8 },   // 고요한 연못
-    { x: mapX + mapW * 0.28, y: mapY + mapH * 0.55 },  // 바위 계곡
-    { x: mapX + mapW * 0.50, y: mapY + mapH * 0.35 },  // 어둠의 호수
-    { x: mapX + mapW * 0.72, y: mapY + mapH * 0.55 },  // 폭풍의 바다
-    { x: mapX + mapW * 0.92, y: mapY + mapH * 0.2 },   // 심연의 균열
-  ];
-
-  const nodeR = isMobile ? 28 : 32;
-  for (let i = 0; i < LOCATIONS.length; i++) {
-    const loc = LOCATIONS[i];
-    const pos = nodePositions[i];
-    const locked = loc.depth > Math.ceil(run.level / 2) + 1;
-    addButton('loc_' + i, pos.x - nodeR, pos.y - nodeR, nodeR * 2, nodeR * 2,
-      locked ? '🔒' : ['🌿', '🪨', '🌑', '⛈️', '🌀'][i],
-      { disabled: locked, color: locked ? '#222' : loc.waterColor, fontSize: isMobile ? 18 : 20 }
-    );
-  }
-
-  const clicked = consumeClick();
-  if (clicked && clicked.startsWith('loc_')) {
-    const idx = parseInt(clicked.split('_')[1]);
-    run.location = LOCATIONS[idx];
-    run.depth = LOCATIONS[idx].depth;
-    currentWeatherKey = pickWeather();
-    initWeatherParticles();
-    // Trigger travel animation
-    travelTimer = 2.5;
-    travelTo = LOCATIONS[idx].name;
-    if (run.charClass && run.charClass.id === 'explorer') {
-      run.hp = Math.min(run.maxHp, run.hp + 5); // Explorer heals on travel
-    }
-    gameState = 'traveling';
-  }
-}
-
-function drawLocationSelect(t) {
-  // Draw parchment-style map background
-  const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  grad.addColorStop(0, '#0a0e1a');
-  grad.addColorStop(0.3, '#0d1525');
-  grad.addColorStop(1, '#050d1a');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawStars(t);
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  const season = getCurrentSeason();
-  const titleFs = isMobile ? 22 : 30;
-  drawText('🗺️ 여행 지도', cx, isMobile ? 30 : 40, { size: titleFs, align: 'center', color: COLORS.accentLight, font: 'bold', shadow: true });
-
-  // Character + stats bar
-  const statsY = isMobile ? 58 : 85;
-  const clsIcon = run.charClass ? run.charClass.icon : '🎣';
-  const clsName = run.charClass ? run.charClass.name : '';
-  drawText(`${clsIcon} ${clsName} | Lv.${run.level} | ❤️${Math.ceil(run.hp)}/${run.maxHp} | 💰${run.gold} | ${season.icon}${season.name}`, cx, statsY, {
-    size: isMobile ? 11 : 14, align: 'center', color: COLORS.uiTextDim
-  });
-  drawText(`📊 ${run.score.toLocaleString()}점`, cx, statsY + 18, { size: isMobile ? 11 : 13, align: 'center', color: COLORS.gold });
-
-  // Draw map paths connecting nodes
-  const mapW = isMobile ? canvas.width - 60 : Math.min(700, canvas.width - 100);
-  const mapH = isMobile ? canvas.height - 200 : 350;
-  const mapX = cx - mapW / 2;
-  const mapY = isMobile ? 120 : 150;
-
-  const nodePositions = [
-    { x: mapX + mapW * 0.08, y: mapY + mapH * 0.8 },
-    { x: mapX + mapW * 0.28, y: mapY + mapH * 0.55 },
-    { x: mapX + mapW * 0.50, y: mapY + mapH * 0.35 },
-    { x: mapX + mapW * 0.72, y: mapY + mapH * 0.55 },
-    { x: mapX + mapW * 0.92, y: mapY + mapH * 0.2 },
-  ];
-
-  // Draw dotted paths between nodes
-  ctx.setLineDash([4, 6]);
-  ctx.strokeStyle = 'rgba(162, 155, 254, 0.3)';
-  ctx.lineWidth = 2;
-  for (let i = 0; i < nodePositions.length - 1; i++) {
-    const a = nodePositions[i];
-    const b = nodePositions[i + 1];
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // Draw terrain features between nodes
-  for (let i = 0; i < nodePositions.length; i++) {
-    const pos = nodePositions[i];
-    const loc = LOCATIONS[i];
-    const locked = loc.depth > Math.ceil(run.level / 2) + 1;
-    const isCurrentLoc = run.location && run.location.name === loc.name;
-
-    // Glow for current location
-    if (isCurrentLoc) {
-      ctx.fillStyle = 'rgba(108, 92, 231, 0.2)';
-      ctx.beginPath(); ctx.arc(pos.x, pos.y, 45, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = COLORS.accentLight;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(pos.x, pos.y, 38 + Math.sin(t * 3) * 3, 0, Math.PI * 2); ctx.stroke();
-    }
-
-    // Location name label
-    const labelY = pos.y + (isMobile ? 38 : 42);
-    ctx.globalAlpha = locked ? 0.3 : 1;
-    drawText(loc.name, pos.x, labelY, { size: isMobile ? 10 : 12, align: 'center', color: locked ? '#555' : COLORS.uiText, font: 'bold' });
-    if (!locked) {
-      drawText(`깊이 ${loc.depth}`, pos.x, labelY + 15, { size: 9, align: 'center', color: COLORS.uiTextDim });
-    } else {
-      drawText(`Lv.${loc.depth * 2 - 1} 필요`, pos.x, labelY + 15, { size: 9, align: 'center', color: '#555' });
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  // Current location indicator (small character)
-  if (run.location && selectedClass) {
-    const curIdx = LOCATIONS.findIndex(l => l.name === run.location.name);
-    if (curIdx >= 0) {
-      const pos = nodePositions[curIdx];
-      ctx.save();
-      selectedClass.draw(pos.x, pos.y - 55, 16);
-      ctx.restore();
-    }
-  }
-
-  drawButtons(t);
-}
-
-// ─── SCENE: SHOP ───
-let shopScroll = 0;
-function updateShop(dt) {
-  clearButtons();
-  addButton('shop_back', 30, 30, 120, 36, '← 돌아가기', { color: '#2d3436' });
-
-  const cx = canvas.width / 2;
-  const slotW = isMobile ? Math.min(300, canvas.width - 40) : 360;
-  const slotH = 80;
-  const startY = 110;
-  const slots = ['rod', 'reel', 'bait'];
-
-  for (let i = 0; i < slots.length; i++) {
-    const slot = slots[i];
-    const equip = EQUIPMENT[slot];
-    const currentTier = run.equipTier[slot];
-    const currentItem = equip.tiers[currentTier];
-    const nextTier = currentTier + 1;
-    const hasNext = nextTier < equip.tiers.length;
-
-    if (hasNext) {
-      const nextItem = equip.tiers[nextTier];
-      const canAfford = run.gold >= nextItem.cost;
-      const meetsLevel = !nextItem.reqLevel || run.level >= nextItem.reqLevel;
-      const canBuy = canAfford && meetsLevel;
-      let subText = `💰 ${nextItem.cost}G`;
-      if (!meetsLevel) subText += ` | Lv.${nextItem.reqLevel} 필요`;
-      addButton('buy_' + slot, cx - slotW / 2, startY + i * (slotH + 15), slotW, slotH,
-        `${equip.icon} ${currentItem.name} → ${nextItem.name}`, {
-        sub: subText,
-        disabled: !canBuy,
-        fontSize: isMobile ? 13 : 14,
-        color: canBuy ? '#27ae60' : '#555',
-      });
-    } else {
-      addButton('max_' + slot, cx - slotW / 2, startY + i * (slotH + 15), slotW, slotH,
-        `${equip.icon} ${currentItem.name} (MAX)`, {
-        sub: '최고 등급',
-        disabled: true,
-        fontSize: isMobile ? 13 : 14,
-        color: '#555',
-      });
-    }
-  }
-
-  const clicked = consumeClick();
-  if (clicked === 'shop_back') { gameState = 'fishing'; }
-  if (clicked && clicked.startsWith('buy_')) {
-    const slot = clicked.split('_')[1];
-    const equip = EQUIPMENT[slot];
-    const nextTier = run.equipTier[slot] + 1;
-    if (nextTier < equip.tiers.length) {
-      const nextItem = equip.tiers[nextTier];
-      if (run.gold >= nextItem.cost && (!nextItem.reqLevel || run.level >= nextItem.reqLevel)) {
-        run.gold -= nextItem.cost;
-        run.equipTier[slot] = nextTier;
-        // Apply stat bonuses additively
-        if (slot === 'rod') {
-          run.lineMax += nextItem.lineMax;
-          run.line = run.lineMax;
-          run.hookPower += nextItem.hookPower;
-        } else if (slot === 'reel') {
-          run.reelSpeed += nextItem.reelSpeed;
-        } else if (slot === 'bait') {
-          run.biteSpeed += nextItem.biteSpeed;
-          run.luckBonus += nextItem.luckBonus;
-        }
-      }
-    }
-  }
-  if (keys['Escape']) { gameState = 'fishing'; keys['Escape'] = false; }
-}
-
-function drawShop(t) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  drawText('🛒 장비 상점', canvas.width / 2, 40, { size: 28, align: 'center', color: COLORS.accentLight, font: 'bold' });
-  drawText(`💰 보유 골드: ${run.gold.toLocaleString()} | Lv.${run.level}`, canvas.width / 2, 72, { size: 14, align: 'center', color: COLORS.gold });
-
-  // Current equipment info
-  const infoY = isMobile ? canvas.height - 120 : canvas.height - 140;
-  const infoW = isMobile ? canvas.width - 40 : 360;
-  drawPanel(canvas.width / 2 - infoW / 2, infoY, infoW, 100);
-  drawText('현재 장비 효과', canvas.width / 2, infoY + 10, { size: 13, align: 'center', color: COLORS.accentLight, font: 'bold' });
-  drawText(`줄 내구도: ${Math.floor(run.lineMax)} | 훅 파워: ${run.hookPower.toFixed(2)}`, canvas.width / 2, infoY + 32, { size: 12, align: 'center', color: COLORS.uiText });
-  drawText(`릴 속도: ${run.reelSpeed.toFixed(2)}x | 입질 속도: ${run.biteSpeed.toFixed(2)}x`, canvas.width / 2, infoY + 52, { size: 12, align: 'center', color: COLORS.uiText });
-  drawText(`행운 보너스: +${(run.luckBonus * 100).toFixed(0)}%`, canvas.width / 2, infoY + 72, { size: 12, align: 'center', color: COLORS.uiText });
-
-  drawButtons(t);
-}
-
-// ─── SCENE: FISHING ───
-let fishingState = 'idle'; // idle, casting, waiting, bite, reeling
-let castAnim = 0;
-let bobberX = 0, bobberY = 0;
-let waitTimer = 0;
-let biteTimer = 0;
-let currentFish = null;
-let fishBubbles = [];
-let catchMessage = '';
-let catchMessageTimer = 0;
-let fishShadows = [];
-
-function resetFishing() {
-  fishingState = 'idle';
-  castAnim = 0;
-  waitTimer = 0;
-  biteTimer = 0;
-  currentFish = null;
-  catchMessage = '';
-  catchMessageTimer = 0;
-  generateFishShadows();
-}
-
-function generateFishShadows() {
-  fishShadows = [];
-  for (let i = 0; i < randInt(5, 12); i++) {
-    fishShadows.push({
-      x: rand(100, canvas.width - 100),
-      y: rand(canvas.height * 0.55 + 40, canvas.height - 40),
-      size: rand(8, 30),
-      speed: rand(0.3, 1.2) * (Math.random() > 0.5 ? 1 : -1),
-      alpha: rand(0.05, 0.15),
-    });
-  }
-}
-
-function updateFishing(dt, t) {
-  clearButtons();
-
-  // Event timer
-  if (run.activeEvent) {
-    run.eventTimer -= dt;
-    if (run.eventTimer <= 0) {
-      run.activeEvent = null;
-      run.tempFight = 1; run.tempRarity = 0; run.tempGold = 1; run.tempBiteSpeed = 1; run.tempDmg = 1;
-    }
-  }
-
-  // Fish shadows
-  for (const s of fishShadows) {
-    s.x += s.speed * 60 * dt;
-    if (s.x < -50) s.x = canvas.width + 50;
-    if (s.x > canvas.width + 50) s.x = -50;
-  }
-
-  // Catch message
-  if (catchMessageTimer > 0) catchMessageTimer -= dt;
-
-  // Weather particles
-  updateWeatherParticles(dt);
-
-  const cx = canvas.width / 2;
-  const waterY = canvas.height * 0.50;
-  const weather = WEATHER[currentWeatherKey];
-  const season = getCurrentSeason();
-
-  switch (fishingState) {
-    case 'idle': {
-      const btnH = isMobile ? 54 : 45;
-      const btnY = canvas.height - (isMobile ? 100 : 80);
-      const castW = isMobile ? 140 : 130;
-      const sideW = isMobile ? 52 : 56;
-      const gap = isMobile ? 6 : 10;
-
-      // Layout: map | shop | CAST | inv
-      const totalBtnsW = castW + sideW * 3 + gap * 3;
-      const startX = cx - totalBtnsW / 2;
-
-      addButton('map', startX, btnY, sideW, btnH, '🗺️', { color: '#2d3436' });
-      addButton('shop', startX + sideW + gap, btnY, sideW, btnH, '🛒', { color: '#2d3436' });
-      addButton('cast', startX + sideW * 2 + gap * 2, btnY, castW, btnH, '🎣 캐스팅!', { fontSize: isMobile ? 18 : 16 });
-      addButton('inv', startX + sideW * 2 + castW + gap * 3, btnY, sideW, btnH, '🎒', { color: '#2d3436' });
-
-      const clicked = consumeClick();
-      if (clicked === 'cast') {
-        fishingState = 'casting';
-        castAnim = 0;
-        bobberX = cx + rand(-150, 150);
-        bobberY = waterY + rand(30, 150);
-        checkRandomEvent();
-      }
-      if (clicked === 'map') {
-        gameState = village ? 'village' : 'travel_map';
-        resetFishing();
-      }
-      if (clicked === 'shop') gameState = 'shop';
-      if (clicked === 'inv') gameState = 'inventory';
-      break;
-    }
-
-    case 'casting':
-      castAnim += dt * 3;
-      if (castAnim >= 1) {
-        fishingState = 'waiting';
-        const biteSpeedTotal = run.biteSpeed * run.tempBiteSpeed * weather.biteSpeedMod * season.biteSpeedMod;
-        waitTimer = rand(1, 4) / Math.max(0.1, biteSpeedTotal);
-        spawnParticles(bobberX, bobberY, '#4a90d9', 8, 15);
-      }
-      break;
-
-    case 'waiting':
-      waitTimer -= dt;
-      if (waitTimer <= 0) {
-        fishingState = 'bite';
-        biteTimer = 1.5;
-        // Check boss spawn
-        if (shouldSpawnBoss()) {
-          currentFish = generateBossFish(run.location);
-        } else {
-          currentFish = generateFish(run.location);
-        }
-        spawnParticles(bobberX, bobberY, RARITY[currentFish.rarity].color, 12, 20);
-        vibrate([50]);
-      }
-      break;
-
-    case 'bite':
-      biteTimer -= dt;
-      // Player clicks/taps to hook
-      const hookW = isMobile ? Math.min(260, canvas.width * 0.6) : 200;
-      const hookH = isMobile ? 60 : 50;
-      addButton('hook', cx - hookW / 2, canvas.height - (isMobile ? 110 : 80), hookW, hookH, '⚡ 챈다!', { fontSize: isMobile ? 24 : 20, color: '#e74c3c' });
-      const hookClicked = consumeClick();
-      if (hookClicked === 'hook' || (mouse.clicked && mouse.y < canvas.height - 100)) {
-        mouse.clicked = false;
-        startMinigame(currentFish);
-        fishingState = 'idle';
-      }
-      if (biteTimer <= 0) {
-        fishingState = 'idle';
-        catchMessage = '🐟 놓쳤다...';
-        catchMessageTimer = 2;
-        run.combo = 0;
-        currentFish = null;
-      }
-      break;
-  }
-}
-
-function drawFishing(t) {
-  // Sky
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  skyGrad.addColorStop(0, COLORS.skyGrad1);
-  skyGrad.addColorStop(0.4, COLORS.skyGrad2);
-  skyGrad.addColorStop(1, run.location.waterColor);
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  drawStars(t);
-
-  const waterY = canvas.height * 0.50;
-  drawWater(waterY, canvas.height - waterY, run.location.waterColor, t);
-
-  // Shore line
-  ctx.fillStyle = COLORS.sand;
-  ctx.beginPath();
-  ctx.moveTo(0, waterY);
-  for (let x = 0; x <= canvas.width; x += 20) {
-    ctx.lineTo(x, waterY + Math.sin(x * 0.02 + t) * 3);
-  }
-  ctx.lineTo(canvas.width, waterY + 5);
-  ctx.lineTo(0, waterY + 5);
-  ctx.fill();
-
-  // Fish shadows
-  for (const s of fishShadows) {
-    if (!run.hasSonar && s.alpha < 0.08) continue;
-    ctx.globalAlpha = run.hasSonar ? 0.25 : s.alpha;
-    ctx.fillStyle = run.hasSonar ? '#5dade2' : '#1a3a5c';
-    ctx.beginPath();
-    ctx.ellipse(s.x, s.y, s.size, s.size * 0.4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // tail
-    const dir = s.speed > 0 ? -1 : 1;
-    ctx.beginPath();
-    ctx.moveTo(s.x + dir * s.size, s.y);
-    ctx.lineTo(s.x + dir * (s.size + s.size * 0.5), s.y - s.size * 0.3);
-    ctx.lineTo(s.x + dir * (s.size + s.size * 0.5), s.y + s.size * 0.3);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-  }
-
-  // Bobber & line
-  if (fishingState !== 'idle') {
-    const rodX = canvas.width / 2 + 20;
-    const rodY = waterY - 10;
-    const animBobberX = fishingState === 'casting' ? lerp(rodX, bobberX, easeOut(castAnim)) : bobberX;
-    const animBobberY = fishingState === 'casting' ? lerp(rodY, bobberY, easeOut(castAnim)) : bobberY;
-
-    // Line
-    ctx.strokeStyle = 'rgba(200,200,200,0.4)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(rodX, rodY);
-    ctx.quadraticCurveTo((rodX + animBobberX) / 2, rodY - 30, animBobberX, animBobberY);
-    ctx.stroke();
-
-    // Bobber
-    const bobberBounce = fishingState === 'bite' ? Math.sin(t * 15) * 5 : Math.sin(t * 2) * 2;
-    ctx.fillStyle = '#e74c3c';
-    ctx.beginPath();
-    ctx.arc(animBobberX, animBobberY + bobberBounce, fishingState === 'bite' ? 7 : 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(animBobberX, animBobberY + bobberBounce - 3, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Bite indicator
-    if (fishingState === 'bite') {
-      const pulseAlpha = 0.5 + Math.sin(t * 10) * 0.5;
-      ctx.strokeStyle = `rgba(255, 80, 80, ${pulseAlpha})`;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(animBobberX, animBobberY + bobberBounce, 15 + Math.sin(t * 8) * 5, 0, Math.PI * 2);
-      ctx.stroke();
-      drawText('❗', animBobberX, animBobberY - 30 + bobberBounce, { size: 24, align: 'center', baseline: 'middle' });
-    }
-  }
-
-  // Fisher silhouette
-  const fisherX = canvas.width / 2;
-  const fisherY = waterY - 15;
-  ctx.fillStyle = '#1a1a2e';
-  // body
-  ctx.fillRect(fisherX - 8, fisherY - 30, 16, 30);
-  // head
-  ctx.beginPath(); ctx.arc(fisherX, fisherY - 38, 10, 0, Math.PI * 2); ctx.fill();
-  // rod
-  ctx.strokeStyle = '#4a3520';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(fisherX + 5, fisherY - 20);
-  ctx.lineTo(fisherX + 60, fisherY - 50);
-  ctx.stroke();
-
-  drawParticles();
-
-  // Weather effects on top
-  drawWeatherEffects(t);
-
-  // HUD
-  const weather = WEATHER[currentWeatherKey];
-  const season = getCurrentSeason();
-  const hudW = isMobile ? Math.min(210, canvas.width - 20) : 230;
-  const hudFs = isMobile ? 11 : 13;
-  const hudH = isMobile ? 130 : 145;
-  drawPanel(10, 10, hudW, hudH);
-  const clsIco = run.charClass ? run.charClass.icon : '';
-  drawText(`${clsIco} ${run.location.name}`, 18, 16, { size: isMobile ? 13 : 15, color: COLORS.accentLight, font: 'bold' });
-  drawText(`Lv.${run.level}`, 18, 36, { size: hudFs, color: COLORS.uiText });
-  drawBar(50, 36, hudW - 60, 13, run.xp, run.xpToNext, COLORS.xp, COLORS.xpBg, `${run.xp}/${run.xpToNext}`);
-  drawText('❤️', 18, 56, { size: hudFs });
-  drawBar(42, 56, hudW - 52, 13, run.hp, run.maxHp, COLORS.hp, COLORS.hpBg, `${Math.ceil(run.hp)}/${run.maxHp}`);
-  drawText(`💰 ${run.gold.toLocaleString()}`, 18, 76, { size: hudFs, color: COLORS.gold });
-  drawText(`📊 ${run.score.toLocaleString()}`, 18 + hudW / 2, 76, { size: hudFs, color: COLORS.uiTextDim });
-  if (run.combo > 1) drawText(`🔥 x${run.combo}`, 18, 94, { size: hudFs, color: '#e67e22' });
-  drawText(`🐟 ${run.fishCount}`, 18 + hudW / 2, 94, { size: hudFs, color: COLORS.uiTextDim });
-  // Weather + Season + Energy display
-  drawText(`${weather.icon} ${weather.name}`, 18, 112, { size: hudFs, color: COLORS.uiTextDim });
-  drawText(`${season.icon} ${season.name}`, 18 + hudW / 2, 112, { size: hudFs, color: COLORS.uiTextDim });
-  if (village) {
-    drawText(`⚡${village.energy}`, 18, 128, { size: hudFs, color: village.energy < 20 ? '#e74c3c' : '#f39c12' });
-    drawText(`🎒${village.inventory.length}/${getInvMax()}`, 18 + hudW / 2, 128, { size: hudFs, color: village.inventory.length >= getInvMax() ? '#e74c3c' : COLORS.uiTextDim });
-  }
-
-  // Active event
-  if (run.activeEvent) {
-    const ew = 280;
-    drawPanel(canvas.width - ew - 10, 10, ew, 50, { fill: '#2d1b4e', border: '#6c5ce7' });
-    drawText(run.activeEvent.name, canvas.width - ew, 18, { size: 14, color: '#a29bfe', font: 'bold' });
-    drawText(`${Math.ceil(run.eventTimer)}초 남음`, canvas.width - ew, 38, { size: 11, color: COLORS.uiTextDim });
-  }
-
-  // Catch message
-  if (catchMessageTimer > 0) {
-    const msgAlpha = Math.min(1, catchMessageTimer);
-    ctx.globalAlpha = msgAlpha;
-    drawText(catchMessage, canvas.width / 2, canvas.height * 0.35, { size: 22, align: 'center', baseline: 'middle', color: '#fff', shadow: true, font: 'bold' });
-    ctx.globalAlpha = 1;
-  }
-
-  drawButtons(t);
-}
-
-// ─── SCENE: MINIGAME ───
-function updateMinigame(dt, t) {
-  const mg = run.mg;
-  if (!mg) return;
-  clearButtons();
-
-  if (mg.result) {
-    mg.resultTimer -= dt;
-    if (mg.resultTimer <= 0) {
-      if (mg.result === 'caught') {
-        // Register catch
-        const fish = mg.fish;
-        run.fishCount++;
-        run.seasonCounter++;
-        run.gold += fish.goldValue;
-        run.score += Math.floor(fish.scoreValue * (1 + run.combo * run.comboBonus));
-        run.xp += Math.floor(5 + fish.actualFight * 3) * (fish.isBoss ? BOSS_CONFIG.xpMulti : 1);
-        run.combo++;
-        run.hp = Math.min(run.maxHp, run.hp + run.healOnCatch);
-        run.fishCaught.push({ name: fish.name, rarity: fish.rarity, size: fish.size, gold: fish.goldValue, isBoss: !!fish.isBoss });
-
-        // Vibration based on rarity
-        const r = fish.rarity;
-        if (r === 'legendary' || r === 'mythic') vibrate([60,30,80,30,120,30,200]);
-        else if (r === 'rare' || r === 'epic') vibrate([50,30,80]);
-        else vibrate([80]);
-
-        // Codex
-        if (!unlockedFish.includes(fish.name)) {
-          unlockedFish.push(fish.name);
-          localStorage.setItem('deepcast_codex', JSON.stringify(unlockedFish));
-        }
-
-        // Village inventory
-        if (village) {
-          addToInventory(fish);
-          village.totalFishCaught++;
-          // Energy cost
-          village.energy = Math.max(0, village.energy - 3);
-          // Check NPC quests
-          for (const q of village.questsActive) {
-            if (q.fish === fish.name) {
-              q.progress = (q.progress || 0) + 1;
-              if (q.progress >= q.count) {
-                village.gold += q.reward;
-                const npc = NPCS.find(n => n.quest.id === q.id);
-                if (npc) village.npcFriendship[npc.id] = (village.npcFriendship[npc.id]||0) + q.friendReward;
-                village.questsCompleted.push(q.id);
-                village.questsActive = village.questsActive.filter(a => a.id !== q.id);
-                catchMessage += ` | 📋 퀘스트 완료!`;
-              }
-            }
-          }
-          saveVillage();
-        }
-
-        // Double catch
-        if (Math.random() < run.doubleCatchChance) {
-          run.gold += Math.floor(fish.goldValue * 0.5);
-          run.score += Math.floor(fish.scoreValue * 0.5);
-          catchMessage = '🥅 더블 캐치! 보너스 획득!';
-        } else {
-          const bossTag = fish.isBoss ? '👹 BOSS ' : '';
-          catchMessage = `✅ ${bossTag}${fish.rarityData.name} ${fish.name} (${fish.size}cm) 획득! +${fish.goldValue}G`;
-        }
-        catchMessageTimer = 3;
-
-        if (!checkLevelUp()) gameState = 'fishing';
-      } else {
-        // escaped or broken
-        run.combo = 0;
-        const stormDmgMod = (currentWeatherKey === 'storm' && run.stormImmune) ? 0 : 1;
-        const dmg = mg.fish.actualFight * 3 * run.tempDmg * (1 - run.damageReduce) * stormDmgMod;
-        if (mg.result === 'broken') {
-          vibrate([300]);
-          catchMessage = `💥 줄이 끊어졌다! -${Math.ceil(dmg)} HP`;
-        } else {
-          catchMessage = `🐟 놓쳤다... -${Math.ceil(dmg)} HP`;
-        }
-        catchMessageTimer = 2.5;
-        run.hp -= dmg;
-
-        if (run.hp <= 0) {
-          run.hp = 0;
-          endRun();
-        } else {
-          gameState = 'fishing';
-        }
-      }
-      run.mg = null;
-      run.bossActive = false;
-      generateFishShadows();
+    // Miss window
+    fm.timer -= dt;
+    if (fm.timer <= 13) { // 2 seconds to react
+      fm.result = 'miss';
+      fm.resultTimer = 2;
+      fm.phase = 'done';
     }
     return;
   }
 
-  // Timer
-  mg.timer -= dt;
-  if (mg.timer <= 0) {
-    mg.result = 'escaped';
-    mg.resultTimer = 1.5;
+  if (fm.phase === 'done') {
+    fm.resultTimer -= dt;
+    if (fm.resultTimer <= 0) {
+      endFishing();
+    }
     return;
   }
 
-  // Catch zone movement (fish AI)
-  mg.catchZoneY += mg.catchZoneVel * 60 * dt;
-  if (mg.catchZoneY < 0 || mg.catchZoneY > mg.barHeight - mg.catchZoneSize) {
-    mg.catchZoneVel *= -1;
-    mg.catchZoneY = clamp(mg.catchZoneY, 0, mg.barHeight - mg.catchZoneSize);
-  }
-  // Random direction change
-  if (Math.random() < 0.02 * mg.fish.speed) mg.catchZoneVel *= -1;
-  if (Math.random() < 0.01) mg.catchZoneVel += rand(-1, 1);
-  mg.catchZoneVel = clamp(mg.catchZoneVel, -5, 5);
+  // Reeling phase
+  fm.timer -= dt;
+  if (fm.timer <= 0) { fm.result = 'escaped'; fm.resultTimer = 2; fm.phase = 'done'; return; }
 
-  // Adrenaline check
-  let reelSpeedMod = 1;
-  if (run.hasAdrenaline && run.hp / run.maxHp <= 0.3) {
-    reelSpeedMod = 1.6;
+  // Catch zone AI
+  fm.catchZoneY += fm.catchZoneVel * 60 * dt;
+  if (fm.catchZoneY < 0 || fm.catchZoneY > fm.barH - fm.catchZoneSize) {
+    fm.catchZoneVel *= -1;
+    fm.catchZoneY = Math.max(0, Math.min(fm.barH - fm.catchZoneSize, fm.catchZoneY));
   }
+  if (Math.random() < 0.02 * fm.fish.diff) fm.catchZoneVel *= -1;
 
-  // Marker (player control)
-  if (mouse.down || keys['Space']) {
-    mg.markerVel -= (8 + run.reelSpeed * reelSpeedMod * 2) * dt * 60;
-  }
-  mg.markerVel += 5 * dt * 60; // gravity
-  mg.markerVel *= 0.92; // damping
-  mg.markerY += mg.markerVel * dt * 60 * 0.1;
-  mg.markerY = clamp(mg.markerY, 0, mg.barHeight);
+  // Marker physics
+  if (fm.touching) fm.markerVel -= 10 * dt * 60;
+  fm.markerVel += 5 * dt * 60;
+  fm.markerVel *= 0.92;
+  fm.markerY += fm.markerVel * dt * 60 * 0.1;
+  fm.markerY = Math.max(0, Math.min(fm.barH, fm.markerY));
 
-  // Check if marker is in catch zone
-  const inZone = mg.markerY >= mg.catchZoneY && mg.markerY <= mg.catchZoneY + mg.catchZoneSize;
+  const inZone = fm.markerY >= fm.catchZoneY && fm.markerY <= fm.catchZoneY + fm.catchZoneSize;
   if (inZone) {
-    let gain = mg.progressGain * run.hookPower * dt * 60;
-    // Critical hook check
-    if (run.critChance > 0 && Math.random() < run.critChance * dt * 2) {
-      gain *= 2;
-    }
-    mg.progress += gain;
-    mg.tension = Math.max(0, mg.tension - 0.3 * dt * 60);
+    fm.progress += 0.8 * dt * 60;
+    fm.tension = Math.max(0, fm.tension - 0.3 * dt * 60);
   } else {
-    mg.progress -= mg.progressDecay * dt * 60;
-    mg.tension += (0.2 + mg.fish.actualFight * 0.05) * dt * 60;
+    fm.progress -= (0.3 + fm.fish.diff * 0.05) * dt * 60;
+    fm.tension += (0.2 + fm.fish.diff * 0.05) * dt * 60;
   }
+  fm.progress = Math.max(0, Math.min(100, fm.progress));
+  fm.tension = Math.max(0, Math.min(fm.maxTension, fm.tension));
 
-  mg.progress = clamp(mg.progress, 0, 100);
-  mg.tension = clamp(mg.tension, 0, mg.maxTension);
-
-  // Win/Lose
-  if (mg.progress >= 100) {
-    mg.result = 'caught';
-    mg.resultTimer = 1.5;
-    spawnParticles(canvas.width / 2, canvas.height / 2, mg.fish.rarityData.color, 30, 60);
-  }
-  if (mg.tension >= mg.maxTension) {
-    mg.result = 'broken';
-    mg.resultTimer = 1.5;
-  }
-
-  // Splash
-  mg.splashTimer -= dt;
-  if (mg.splashTimer <= 0 && !inZone) {
-    mg.splashTimer = rand(0.3, 0.8);
-    spawnParticles(mg.fishX + rand(-20, 20), mg.fishY + rand(-10, 10), '#4a90d9', 3, 8);
-  }
+  if (fm.progress >= 100) { fm.result = 'caught'; fm.resultTimer = 2; fm.phase = 'done'; }
+  if (fm.tension >= fm.maxTension) { fm.result = 'broken'; fm.resultTimer = 2; fm.phase = 'done'; }
 }
 
-function drawMinigame(t) {
-  const mg = run.mg;
-  if (!mg) return;
+function drawFishing() {
+  const fm = fishMini;
+  if (!fm) return;
+  const w = fishCanvas.width, h = fishCanvas.height;
+  fishCtx.fillStyle = '#0a1525';
+  fishCtx.fillRect(0, 0, w, h);
 
-  // Dim background
-  ctx.fillStyle = 'rgba(5, 5, 20, 0.85)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cx = w / 2;
 
-  // Boss red vignette
-  if (mg.isBoss) {
-    const vigGrad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height * 0.2, canvas.width/2, canvas.height/2, canvas.height * 0.8);
-    vigGrad.addColorStop(0, 'rgba(200,0,0,0)');
-    vigGrad.addColorStop(1, `rgba(200,0,0,${0.15 + Math.sin(t * 3) * 0.05})`);
-    ctx.fillStyle = vigGrad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (fm.phase === 'waiting') {
+    fishCtx.fillStyle = '#c8c8e0';
+    fishCtx.font = '16px sans-serif';
+    fishCtx.textAlign = 'center';
+    fishCtx.fillText('🎣 낚싯대를 던졌습니다...', cx, 200);
+    fishCtx.fillStyle = '#6a6a8e';
+    fishCtx.font = '13px sans-serif';
+    fishCtx.fillText('물고기를 기다리는 중', cx, 230);
+    // Bobber animation
+    const bobY = 280 + Math.sin(fm.biteAnim * 2) * 5;
+    fishCtx.fillStyle = '#e74c3c';
+    fishCtx.beginPath(); fishCtx.arc(cx, bobY, 6, 0, Math.PI*2); fishCtx.fill();
+    return;
   }
 
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  // Fish info panel
-  const infoPanelW = isMobile ? Math.min(320, canvas.width - 40) : 400;
-  drawPanel(cx - infoPanelW / 2, 30, infoPanelW, mg.isBoss ? 65 : 50);
-  const bossLabel = mg.isBoss ? '⚠️ BOSS ' : '';
-  drawText(`${bossLabel}${mg.fish.rarityData.name} ${mg.fish.name}`, cx, 42, { size: isMobile ? 15 : 18, align: 'center', color: mg.isBoss ? '#e74c3c' : mg.fish.rarityData.color, font: 'bold' });
-  drawText(`${mg.fish.size}cm | 전투력: ${mg.fish.actualFight.toFixed(1)}`, cx, 62, { size: isMobile ? 11 : 12, align: 'center', color: COLORS.uiTextDim });
-  if (mg.isBoss) {
-    drawText('보스 물고기!', cx, 80, { size: isMobile ? 10 : 11, align: 'center', color: '#e74c3c' });
+  if (fm.phase === 'bite') {
+    fishCtx.fillStyle = '#ffd700';
+    fishCtx.font = 'bold 22px sans-serif';
+    fishCtx.textAlign = 'center';
+    fishCtx.fillText('❗ 입질이다!', cx, 200);
+    fishCtx.fillStyle = '#c8c8e0';
+    fishCtx.font = '14px sans-serif';
+    fishCtx.fillText('탭하여 채기!', cx, 240);
+    // Bouncing bobber
+    const bobY = 280 + Math.sin(fm.biteAnim) * 15;
+    fishCtx.fillStyle = '#e74c3c';
+    fishCtx.beginPath(); fishCtx.arc(cx, bobY, 8, 0, Math.PI*2); fishCtx.fill();
+    return;
   }
 
-  // Reel bar (left side)
-  const barX = isMobile ? 20 : cx - 180;
-  const barY = cy - (isMobile ? 100 : 150);
-  const barW = isMobile ? 35 : 40;
-  const barH = isMobile ? Math.min(250, canvas.height * 0.35) : mg.barHeight;
+  if (fm.phase === 'done') {
+    fishCtx.font = 'bold 24px sans-serif';
+    fishCtx.textAlign = 'center';
+    if (fm.result === 'caught') {
+      fishCtx.fillStyle = '#2ecc71';
+      fishCtx.fillText('🎉 잡았다!', cx, 180);
+      fishCtx.fillStyle = fm.fish.color;
+      fishCtx.font = '16px sans-serif';
+      fishCtx.fillText(`${fm.fish.name} (${fm.size}cm)`, cx, 220);
+      fishCtx.fillStyle = '#ffd700';
+      fishCtx.fillText(`+${fm.goldValue}G`, cx, 250);
+    } else {
+      fishCtx.fillStyle = '#e74c3c';
+      fishCtx.fillText(fm.result === 'broken' ? '💥 줄이 끊어졌다!' : '🐟 놓쳤다...', cx, 200);
+    }
+    return;
+  }
 
-  // Bar background
-  drawPanel(barX - 5, barY - 5, barW + 10, barH + 10, { fill: '#0a0a1a', border: '#2a2a4e' });
+  // Reeling UI
+  // Fish info
+  fishCtx.fillStyle = fm.fish.color;
+  fishCtx.font = 'bold 14px sans-serif';
+  fishCtx.textAlign = 'center';
+  fishCtx.fillText(`${fm.fish.name} (${fm.size}cm)`, cx, 30);
+  fishCtx.fillStyle = '#6a6a8e';
+  fishCtx.font = '12px sans-serif';
+  fishCtx.fillText(`⏱️ ${fm.timer.toFixed(1)}s`, cx, 50);
 
-  // Catch zone (scale positions to drawn barH)
-  const scaleY = barH / mg.barHeight;
-  ctx.fillStyle = 'rgba(46, 204, 113, 0.3)';
-  ctx.fillRect(barX, barY + mg.catchZoneY * scaleY, barW, mg.catchZoneSize * scaleY);
-  ctx.strokeStyle = '#2ecc71';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(barX, barY + mg.catchZoneY * scaleY, barW, mg.catchZoneSize * scaleY);
+  // Reel bar
+  const barX = 40, barY = 70, barW = 35;
+  fishCtx.fillStyle = '#1a1a2e';
+  fishCtx.fillRect(barX, barY, barW, fm.barH);
+  fishCtx.strokeStyle = '#2a2a4e';
+  fishCtx.strokeRect(barX, barY, barW, fm.barH);
+
+  // Catch zone
+  fishCtx.fillStyle = 'rgba(46,204,113,0.3)';
+  fishCtx.fillRect(barX, barY + fm.catchZoneY, barW, fm.catchZoneSize);
+  fishCtx.strokeStyle = '#2ecc71';
+  fishCtx.lineWidth = 2;
+  fishCtx.strokeRect(barX, barY + fm.catchZoneY, barW, fm.catchZoneSize);
 
   // Marker
-  const inZone = mg.markerY >= mg.catchZoneY && mg.markerY <= mg.catchZoneY + mg.catchZoneSize;
-  ctx.fillStyle = inZone ? '#2ecc71' : '#e74c3c';
-  ctx.beginPath();
-  ctx.arc(barX + barW / 2, barY + mg.markerY * scaleY, isMobile ? 10 : 8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  const inZone = fm.markerY >= fm.catchZoneY && fm.markerY <= fm.catchZoneY + fm.catchZoneSize;
+  fishCtx.fillStyle = inZone ? '#2ecc71' : '#e74c3c';
+  fishCtx.beginPath(); fishCtx.arc(barX + barW/2, barY + fm.markerY, 8, 0, Math.PI*2); fishCtx.fill();
+  fishCtx.strokeStyle = '#fff';
+  fishCtx.lineWidth = 2;
+  fishCtx.stroke();
 
-  // Progress bar (bottom)
-  const progBarW = isMobile ? Math.min(260, canvas.width - 60) : 260;
-  const progX = cx - progBarW / 2;
-  const progY = isMobile ? canvas.height - 130 : cy + 180;
-  drawText('포획 진행도', progX, progY - 15, { size: isMobile ? 11 : 12, color: COLORS.uiTextDim });
-  drawBar(progX, progY, progBarW, 20, mg.progress, 100, '#2ecc71', '#153d20', `${Math.floor(mg.progress)}%`);
+  // Progress bar
+  const progX = 100, progY = h - 80, progW = w - 140;
+  fishCtx.fillStyle = '#6a6a8e';
+  fishCtx.font = '11px sans-serif';
+  fishCtx.textAlign = 'left';
+  fishCtx.fillText('포획', progX, progY - 5);
+  fishCtx.fillStyle = '#1a1a2e';
+  fishCtx.fillRect(progX, progY, progW, 16);
+  fishCtx.fillStyle = '#2ecc71';
+  fishCtx.fillRect(progX, progY, progW * fm.progress / 100, 16);
 
   // Tension bar
-  const tensY = progY + 35;
-  drawText('줄 장력', progX, tensY - 15, { size: isMobile ? 11 : 12, color: COLORS.uiTextDim });
-  const tensionColor = mg.tension / mg.maxTension > 0.7 ? '#e74c3c' : '#f39c12';
-  drawBar(progX, tensY, progBarW, 20, mg.tension, mg.maxTension, tensionColor, '#3d2515', `${Math.floor(mg.tension)}/${Math.floor(mg.maxTension)}`);
+  const tensY = progY + 30;
+  fishCtx.fillStyle = '#6a6a8e';
+  fishCtx.fillText('장력', progX, tensY - 5);
+  fishCtx.fillStyle = '#1a1a2e';
+  fishCtx.fillRect(progX, tensY, progW, 16);
+  fishCtx.fillStyle = fm.tension/fm.maxTension > 0.7 ? '#e74c3c' : '#f39c12';
+  fishCtx.fillRect(progX, tensY, progW * fm.tension / fm.maxTension, 16);
 
-  // Timer
-  const timeColor = mg.timer < 5 ? '#e74c3c' : COLORS.uiText;
-  drawText(`⏱️ ${mg.timer.toFixed(1)}s`, isMobile ? cx : cx + 100, isMobile ? (mg.isBoss ? 100 : 90) : cy - 150, { size: isMobile ? 18 : 16, color: timeColor, align: isMobile ? 'center' : 'left' });
-
-  // Fish visual (right side on desktop, center on mobile)
-  const fishVizX = isMobile ? cx : cx + 60;
-  const fishVizY = isMobile ? cy - 20 : cy - 30;
-  const fishPanelSize = isMobile ? 140 : 200;
-  drawPanel(fishVizX - fishPanelSize / 2, fishVizY - fishPanelSize / 2, fishPanelSize, fishPanelSize, { fill: run.location.waterColor, border: mg.isBoss ? '#e74c3c' : mg.fish.rarityData.color });
-
-  // Animated fish
-  const fishBounce = Math.sin(t * 4) * 10;
-  const fishSize = clamp(mg.fish.size * 0.3, 15, isMobile ? 40 : 60);
-  ctx.fillStyle = mg.fish.rarityData.color;
-  ctx.globalAlpha = 0.8;
-  ctx.beginPath();
-  ctx.ellipse(fishVizX, fishVizY + fishBounce, fishSize, fishSize * 0.45, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // eye
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(fishVizX + fishSize * 0.5, fishVizY + fishBounce - fishSize * 0.1, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#000';
-  ctx.beginPath();
-  ctx.arc(fishVizX + fishSize * 0.5 + 1, fishVizY + fishBounce - fishSize * 0.1, 1.5, 0, Math.PI * 2);
-  ctx.fill();
-  // tail
-  ctx.fillStyle = mg.fish.rarityData.color;
-  ctx.beginPath();
-  ctx.moveTo(fishVizX - fishSize, fishVizY + fishBounce);
-  ctx.lineTo(fishVizX - fishSize - fishSize * 0.5, fishVizY + fishBounce - fishSize * 0.35);
-  ctx.lineTo(fishVizX - fishSize - fishSize * 0.5, fishVizY + fishBounce + fishSize * 0.35);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // Boss glow effect
-  if (mg.isBoss) {
-    ctx.globalAlpha = 0.2 + Math.sin(t * 5) * 0.1;
-    ctx.strokeStyle = '#e74c3c';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(fishVizX, fishVizY + fishBounce, fishSize + 10, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-
-  // Adrenaline indicator
-  if (run.hasAdrenaline && run.hp / run.maxHp <= 0.3) {
-    drawText('💉 아드레날린 활성!', cx, isMobile ? canvas.height - 165 : cy + 155, { size: 12, align: 'center', color: '#e74c3c', font: 'bold' });
-  }
+  // Fish visual
+  const fvx = cx + 60, fvy = 200;
+  fishCtx.fillStyle = 'rgba(13,27,62,0.5)';
+  fishCtx.fillRect(fvx - 60, fvy - 60, 120, 120);
+  const bounce = Math.sin(Date.now()/200) * 10;
+  const fSize = Math.min(40, fm.size * 0.2);
+  fishCtx.fillStyle = fm.fish.color;
+  fishCtx.beginPath(); fishCtx.ellipse(fvx, fvy + bounce, fSize, fSize*0.45, 0, 0, Math.PI*2); fishCtx.fill();
 
   // Instructions
-  const instrText = isMobile ? '👆 화면을 누르세요: 릴 감기' : '🖱️ 클릭/스페이스: 릴 감기';
-  drawText(instrText, cx, isMobile ? canvas.height - 60 : cy + 240, { size: 13, align: 'center', color: COLORS.uiTextDim });
+  fishCtx.fillStyle = '#6a6a8e';
+  fishCtx.font = '11px sans-serif';
+  fishCtx.textAlign = 'center';
+  fishCtx.fillText('화면을 누르세요: 릴 감기', cx, h - 20);
+}
 
-  // Result overlay
-  if (mg.result) {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const msg = mg.result === 'caught' ? '🎉 잡았다!' : mg.result === 'broken' ? '💥 줄이 끊어졌다!' : '🐟 도망갔다...';
-    const col = mg.result === 'caught' ? '#2ecc71' : '#e74c3c';
-    drawText(msg, cx, cy, { size: 36, align: 'center', baseline: 'middle', color: col, font: 'bold', shadow: true });
-    if (mg.result === 'caught') {
-      const bossTag = mg.isBoss ? '👹 BOSS ' : '';
-      drawText(`${bossTag}${mg.fish.rarityData.name} ${mg.fish.name} (${mg.fish.size}cm)`, cx, cy + 45, { size: 18, align: 'center', baseline: 'middle', color: mg.fish.rarityData.color });
-      drawText(`+${mg.fish.goldValue}G | +${mg.fish.scoreValue} 점수`, cx, cy + 70, { size: 14, align: 'center', baseline: 'middle', color: COLORS.gold });
+function endFishing() {
+  if (fishMini.result === 'caught') {
+    const fm = fishMini;
+    if (game.inventory.length < game.invMax) {
+      game.inventory.push({ name: fm.fish.name, rarity: fm.fish.rarity, size: fm.size, gold: fm.goldValue });
+    }
+    game.totalFish++;
+    if (!game.codex.includes(fm.fish.name)) game.codex.push(fm.fish.name);
+  }
+  game.energy = Math.max(0, game.energy - 5);
+  save();
+  updateHUD();
+  fishingActive = false;
+  fishMini = null;
+  document.getElementById('fishing-overlay').classList.remove('show');
+  screen = 'world';
+}
+
+// Fishing touch/click
+const fishOverlay = document.getElementById('fishing-overlay');
+fishOverlay.addEventListener('mousedown', () => { if(fishMini) fishMini.touching = true; });
+fishOverlay.addEventListener('mouseup', () => { if(fishMini) fishMini.touching = false; });
+fishOverlay.addEventListener('touchstart', e => { e.preventDefault(); if(fishMini) { fishMini.touching = true; if(fishMini.phase==='bite') actionPressed=true; } }, {passive:false});
+fishOverlay.addEventListener('touchend', e => { e.preventDefault(); if(fishMini) fishMini.touching = false; }, {passive:false});
+
+// ─── MOVEMENT ───
+function updatePlayer(dt) {
+  if (!game || dialogActive || fishingActive) return;
+  if (game.moveTimer > 0) { game.moveTimer -= dt; return; }
+
+  let dx = 0, dy = 0;
+  if (keys['ArrowUp'] || keys['KeyW'] || vpadState.up) { dy = -1; game.dir = 1; }
+  else if (keys['ArrowDown'] || keys['KeyS'] || vpadState.down) { dy = 1; game.dir = 0; }
+  else if (keys['ArrowLeft'] || keys['KeyA'] || vpadState.left) { dx = -1; game.dir = 2; }
+  else if (keys['ArrowRight'] || keys['KeyD'] || vpadState.right) { dx = 1; game.dir = 3; }
+
+  if (dx !== 0 || dy !== 0) {
+    const nx = game.px + dx, ny = game.py + dy;
+    if (!isSolid(nx, ny)) {
+      game.px = nx;
+      game.py = ny;
+      game.moveTimer = 0.12;
     }
   }
 
-  drawParticles();
-}
-
-// ─── SCENE: PERK SELECT ───
-function updatePerkSelect(dt) {
-  clearButtons();
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  if (isMobile || canvas.width < 700) {
-    // Vertical layout for mobile
-    const pw = Math.min(280, canvas.width - 40);
-    const ph = 70;
-    const startY = cy - (perkChoices.length * (ph + 10)) / 2;
-    for (let i = 0; i < perkChoices.length; i++) {
-      const perk = perkChoices[i];
-      addButton('perk_' + i, cx - pw / 2, startY + i * (ph + 10), pw, ph, `${perk.icon} ${perk.name}`, { sub: perk.desc, fontSize: 15 });
-    }
-  } else {
-    const pw = 220;
-    const totalW = perkChoices.length * (pw + 20) - 20;
-    const startX = cx - totalW / 2;
-    for (let i = 0; i < perkChoices.length; i++) {
-      const perk = perkChoices[i];
-      addButton('perk_' + i, startX + i * (pw + 20), cy - 40, pw, 120, `${perk.icon} ${perk.name}`, { sub: perk.desc, fontSize: 16 });
-    }
-  }
-
-  const clicked = consumeClick();
-  if (clicked && clicked.startsWith('perk_')) {
-    const idx = parseInt(clicked.split('_')[1]);
-    selectPerk(perkChoices[idx]);
-    perkChoices = [];
+  if (actionPressed) {
+    interact();
+    actionPressed = false;
   }
 }
 
-function drawPerkSelect(t) {
-  ctx.fillStyle = 'rgba(5, 5, 20, 0.9)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const cx = canvas.width / 2;
-  drawText('⬆️ 레벨 업!', cx, 100, { size: 36, align: 'center', color: COLORS.gold, font: 'bold', shadow: true });
-  drawText(`레벨 ${run.level} 달성 — 특성을 선택하세요`, cx, 150, { size: 16, align: 'center', color: COLORS.uiTextDim });
-  drawButtons(t);
+// ─── CAMERA ───
+function updateCamera() {
+  if (!game) return;
+  const targetX = game.px * TS - canvas.width / 2 + TS / 2;
+  const targetY = game.py * TS - canvas.height / 2 + TS / 2;
+  camX = Math.max(0, Math.min(MAP_W * TS - canvas.width, targetX));
+  camY = Math.max(0, Math.min(MAP_H * TS - canvas.height, targetY));
 }
 
-// ─── SCENE: INVENTORY ───
-let invScroll = 0;
-function updateInventory(dt) {
-  clearButtons();
-  addButton('back', 30, 30, 120, 36, '← 돌아가기', { color: '#2d3436' });
-  const clicked = consumeClick();
-  if (clicked === 'back') gameState = 'fishing';
-  if (keys['Escape']) { gameState = 'fishing'; keys['Escape'] = false; }
+// ─── RENDER ───
+function drawTile(tileX, tileY, screenX, screenY) {
+  ctx.drawImage(tileCanvas, tileX * TILE, tileY * TILE, TILE, TILE, screenX, screenY, TS, TS);
 }
 
-function drawInventory(t) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+function drawSprite(spriteCol, spriteRow, screenX, screenY) {
+  ctx.drawImage(spriteCanvas, spriteCol * TILE, spriteRow * TILE, TILE, TILE, screenX, screenY, TS, TS);
+}
 
-  drawText('🎒 이번 런 소지품', canvas.width / 2, 40, { size: 28, align: 'center', color: COLORS.accentLight, font: 'bold' });
+function render(t) {
+  if (screen !== 'world' || !game) return;
 
-  // Stats
-  const sx = 60;
-  const weather = WEATHER[currentWeatherKey];
-  const season = getCurrentSeason();
-  drawPanel(sx - 10, 80, 300, 200);
-  drawText('📊 현재 상태', sx, 90, { size: 16, color: COLORS.accentLight, font: 'bold' });
-  drawText(`레벨: ${run.level} | XP: ${run.xp}/${run.xpToNext}`, sx, 115, { size: 13, color: COLORS.uiText });
-  drawText(`HP: ${Math.ceil(run.hp)}/${run.maxHp}`, sx, 135, { size: 13, color: COLORS.hp });
-  drawText(`골드: ${run.gold.toLocaleString()}`, sx, 155, { size: 13, color: COLORS.gold });
-  drawText(`점수: ${run.score.toLocaleString()}`, sx, 175, { size: 13, color: COLORS.uiText });
-  drawText(`연속: ${run.combo}회 | 총 포획: ${run.fishCount}마리`, sx, 195, { size: 13, color: COLORS.uiTextDim });
-  drawText(`줄 내구도: ${Math.floor(run.lineMax)} | 릴 속도: ${run.reelSpeed.toFixed(2)}x`, sx, 215, { size: 13, color: COLORS.uiTextDim });
-  drawText(`행운 보너스: +${(run.luckBonus * 100).toFixed(0)}% | ${weather.icon} ${weather.name} | ${season.icon} ${season.name}`, sx, 235, { size: 13, color: COLORS.uiTextDim });
-  drawText(`장비: 🎣${EQUIPMENT.rod.tiers[run.equipTier.rod].name} | ⚙️${EQUIPMENT.reel.tiers[run.equipTier.reel].name} | 🪱${EQUIPMENT.bait.tiers[run.equipTier.bait].name}`, sx, 255, { size: 11, color: COLORS.uiTextDim });
+  updateCamera();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Perks
-  const px = isMobile ? 60 : 400;
-  const ppy = isMobile ? 300 : 80;
-  drawPanel(px - 10, ppy, 300, 180);
-  drawText('🏅 획득 특성', px, ppy + 10, { size: 16, color: COLORS.accentLight, font: 'bold' });
-  if (run.perks.length === 0) {
-    drawText('아직 없음', px, ppy + 40, { size: 13, color: COLORS.uiTextDim });
-  } else {
-    let py = ppy + 35;
-    for (const pid of run.perks) {
-      const perk = PERKS.find(p => p.id === pid);
-      if (perk) {
-        drawText(`${perk.icon} ${perk.name}: ${perk.desc}`, px, py, { size: 12, color: COLORS.uiText });
-        py += 22;
-      }
+  const startTX = Math.floor(camX / TS);
+  const startTY = Math.floor(camY / TS);
+
+  // Draw ground
+  for (let ty = startTY; ty < startTY + viewH && ty < MAP_H; ty++) {
+    for (let tx = startTX; tx < startTX + viewW && tx < MAP_W; tx++) {
+      if (ty < 0 || tx < 0) continue;
+      const tile = GROUND[ty]?.[tx] ?? 0;
+      const sx = tx * TS - camX;
+      const sy = ty * TS - camY;
+      drawTile(tile, 0, sx, sy);
     }
   }
 
-  // Fish caught
-  const fcY = isMobile ? 500 : 280;
-  drawPanel(sx - 10, fcY, canvas.width - 100, 350);
-  drawText('🐟 잡은 물고기', sx, fcY + 10, { size: 16, color: COLORS.accentLight, font: 'bold' });
-  if (run.fishCaught.length === 0) {
-    drawText('아직 물고기를 잡지 못했습니다', sx, fcY + 40, { size: 13, color: COLORS.uiTextDim });
-  } else {
-    let fy = fcY + 38;
-    const maxShow = Math.min(run.fishCaught.length, 12);
-    for (let i = run.fishCaught.length - 1; i >= Math.max(0, run.fishCaught.length - maxShow); i--) {
-      const f = run.fishCaught[i];
-      const rData = RARITY[f.rarity];
-      const bossTag = f.isBoss ? '👹' : '';
-      drawText(`${rData.name}`, sx, fy, { size: 12, color: rData.color });
-      drawText(`${bossTag}${f.name} (${f.size}cm)`, sx + 40, fy, { size: 12, color: COLORS.uiText });
-      drawText(`+${f.gold}G`, sx + 220, fy, { size: 12, color: COLORS.gold });
-      fy += 22;
-    }
-    if (run.fishCaught.length > maxShow) {
-      drawText(`... 외 ${run.fishCaught.length - maxShow}마리`, sx, fy, { size: 12, color: COLORS.uiTextDim });
+  // Draw objects
+  for (const obj of OBJECTS) {
+    const sx = obj.x * TS - camX;
+    const sy = obj.y * TS - camY;
+    if (sx > -TS && sx < canvas.width + TS && sy > -TS && sy < canvas.height + TS) {
+      drawTile(obj.tx, obj.ty, sx, sy);
     }
   }
 
-  drawButtons(t);
-}
-
-// ─── GAME OVER ───
-function endRun() {
-  if (run.score > bestScore) {
-    bestScore = run.score;
-    localStorage.setItem('deepcast_best', bestScore);
-  }
-  gameState = 'game_over';
-}
-
-function updateGameOver(dt) {
-  clearButtons();
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  const goBtnW = isMobile ? Math.min(260, canvas.width * 0.65) : 240;
-  if (village) {
-    addButton('to_village', cx - goBtnW / 2, cy + 140, goBtnW, isMobile ? 56 : 50, '🏘️ 마을로 돌아가기', { fontSize: isMobile ? 18 : 16 });
-  } else {
-    addButton('retry', cx - goBtnW / 2, cy + 140, goBtnW, isMobile ? 56 : 50, '🔄 다시 도전', { fontSize: isMobile ? 20 : 18 });
-  }
-  addButton('title', cx - goBtnW / 2, cy + (isMobile ? 210 : 200), goBtnW, isMobile ? 46 : 40, '🏠 타이틀로', { color: '#2d3436' });
-
-  const clicked = consumeClick();
-  if (clicked === 'retry') newRun();
-  if (clicked === 'to_village' && village) {
-    advanceTime(); // time passes when you faint
-    run.hp = Math.floor(run.maxHp * 0.5); // wake up with half HP
-    gameState = 'village';
-  }
-  if (clicked === 'title') gameState = 'title';
-}
-
-function drawGameOver(t) {
-  ctx.fillStyle = 'rgba(5, 5, 15, 0.95)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-
-  drawText('💀 게임 오버', cx, cy - 160, { size: 42, align: 'center', baseline: 'middle', color: '#e74c3c', font: 'bold', shadow: true });
-
-  drawPanel(cx - 180, cy - 120, 360, 240);
-  drawText('📊 런 결과', cx, cy - 100, { size: 20, align: 'center', color: COLORS.accentLight, font: 'bold' });
-
-  const bossCount = run.fishCaught.filter(f => f.isBoss).length;
-  const stats = [
-    [`점수: ${run.score.toLocaleString()}`, run.score >= bestScore ? COLORS.gold : COLORS.uiText],
-    [`잡은 물고기: ${run.fishCount}마리${bossCount > 0 ? ' (보스 ' + bossCount + ')' : ''}`, COLORS.uiText],
-    [`도달 레벨: ${run.level}`, COLORS.uiText],
-    [`획득 골드: ${run.gold.toLocaleString()}`, COLORS.gold],
-    [`최고 연속: ${run.combo}`, COLORS.uiText],
-    [`최고 기록: ${bestScore.toLocaleString()}`, COLORS.gold],
-  ];
-
-  let sy = cy - 65;
-  for (const [text, color] of stats) {
-    drawText(text, cx, sy, { size: 15, align: 'center', color });
-    sy += 28;
-  }
-
-  if (run.score >= bestScore && run.score > 0) {
-    drawText('🏆 신기록!', cx, cy - 130, { size: 16, align: 'center', color: COLORS.gold, font: 'bold' });
-  }
-
-  drawButtons(t);
-}
-
-// ─── BOTTOM NAV BAR ───
-const NAV_ITEMS = [
-  { id: 'nav_village', icon: '🏘️', label: '마을', state: 'village' },
-  { id: 'nav_fish', icon: '🎣', label: '낚시', state: 'travel_map' },
-  { id: 'nav_inv', icon: '🎒', label: '소지품', state: 'village_inv' },
-  { id: 'nav_codex', icon: '📖', label: '도감', state: 'codex' },
-];
-
-function drawBottomNav(t) {
-  const navH = isMobile ? 56 : 50;
-  const navY = canvas.height - navH;
-  ctx.fillStyle = 'rgba(10,10,26,0.95)';
-  ctx.fillRect(0, navY, canvas.width, navH);
-  ctx.strokeStyle = COLORS.uiBorder;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, navY); ctx.lineTo(canvas.width, navY); ctx.stroke();
-
-  const itemW = canvas.width / NAV_ITEMS.length;
-  for (let i = 0; i < NAV_ITEMS.length; i++) {
-    const item = NAV_ITEMS[i];
-    const x = i * itemW + itemW / 2;
-    const isActive = gameState === item.state || (item.state === 'village' && gameState.startsWith('village'));
-    ctx.fillStyle = isActive ? COLORS.accentLight : COLORS.uiTextDim;
-    drawText(item.icon, x, navY + 10, { size: 18, align: 'center' });
-    drawText(item.label, x, navY + 32, { size: 9, align: 'center', color: isActive ? COLORS.accentLight : COLORS.uiTextDim });
-  }
-}
-
-function handleNavClick() {
-  if (!village) return null;
-  const navH = isMobile ? 56 : 50;
-  const navY = canvas.height - navH;
-  if (mouse.y < navY) return null;
-  const itemW = canvas.width / NAV_ITEMS.length;
-  const idx = Math.floor(mouse.x / itemW);
-  if (idx >= 0 && idx < NAV_ITEMS.length) return NAV_ITEMS[idx].state;
-  return null;
-}
-
-// ─── SCENE: VILLAGE HUB ───
-function updateVillage(dt, t) {
-  clearButtons();
-  const cx = canvas.width / 2;
-  const navH = isMobile ? 56 : 50;
-
-  // Building buttons
-  for (const b of BUILDINGS) {
-    const bx = b.x * canvas.width;
-    const by = b.y * (canvas.height - navH - 60) + 60;
-    const bSize = isMobile ? 44 : 50;
-    addButton('bld_' + b.id, bx - bSize/2, by - bSize/2, bSize, bSize, b.icon, { fontSize: 22 });
-  }
-
-  // NPC buttons
+  // Draw NPCs
   for (const npc of NPCS) {
-    const bld = BUILDINGS.find(b => b.id === npc.location);
-    if (!bld) continue;
-    const nx = bld.x * canvas.width + (isMobile ? 35 : 45);
-    const ny = bld.y * (canvas.height - navH - 60) + 60 - 10;
-    addButton('npc_' + npc.id, nx - 20, ny - 20, 40, 40, '', { color: 'transparent' });
-  }
-
-  // Action buttons
-  addButton('v_sleep', cx - 60, canvas.height - navH - 45, 120, 34, '💤 휴식', { fontSize: 13, color: '#2d3436' });
-
-  const clicked = consumeClick();
-  if (clicked) {
-    const nav = handleNavClick();
-    if (nav) { gameState = nav; return; }
-    if (clicked.startsWith('bld_')) {
-      const bId = clicked.split('_')[1];
-      if (bId === 'market') { gameState = 'fish_market'; return; }
-      if (bId === 'dock' || bId === 'home' || bId === 'shrine') {
-        villageSubScreen = bId;
-        gameState = 'building_upgrade';
-        return;
-      }
-    }
-    if (clicked.startsWith('npc_')) {
-      const npcId = clicked.split('_')[1];
-      activeNpc = NPCS.find(n => n.id === npcId);
-      dialogLine = 0;
-      gameState = 'npc_dialog';
-      return;
-    }
-    if (clicked === 'v_sleep') {
-      advanceTime();
-      spawnParticles(cx, canvas.height / 2, '#a29bfe', 15, 30);
-    }
-  }
-}
-
-function drawVillage(t) {
-  const navH = isMobile ? 56 : 50;
-  const cx = canvas.width / 2;
-
-  // Sky gradient based on time of day
-  const timeColors = [['#ff7f50','#87ceeb'],['#87ceeb','#5dade2'],['#ff6347','#1a1040'],['#0a0e2a','#050510']];
-  const tc = timeColors[village.timeOfDay] || timeColors[0];
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height * 0.5);
-  skyGrad.addColorStop(0, tc[0]);
-  skyGrad.addColorStop(1, tc[1]);
-  ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  if (village.timeOfDay >= 2) drawStars(t);
-
-  // Ground
-  ctx.fillStyle = '#2d5016';
-  ctx.fillRect(0, canvas.height * 0.55, canvas.width, canvas.height * 0.45);
-  // Path
-  ctx.fillStyle = '#8B7355';
-  ctx.fillRect(cx - 20, canvas.height * 0.55, 40, canvas.height * 0.3);
-  // Water edge
-  drawWater(canvas.height * 0.7, canvas.height * 0.3 - navH, '#0d2b4e', t);
-
-  // Draw buildings
-  for (const b of BUILDINGS) {
-    const bx = b.x * canvas.width;
-    const by = b.y * (canvas.height - navH - 60) + 60;
-    const lvl = village.buildingLevels[b.id];
-    // Building body
-    ctx.fillStyle = lvl >= 2 ? '#5D4037' : lvl >= 1 ? '#6D4C41' : '#795548';
-    const bw = 40 + lvl * 10;
-    const bh = 30 + lvl * 8;
-    ctx.fillRect(bx - bw/2, by - bh + 10, bw, bh);
-    // Roof
-    ctx.fillStyle = lvl >= 2 ? '#c0392b' : lvl >= 1 ? '#d35400' : '#8D6E63';
-    ctx.beginPath();
-    ctx.moveTo(bx - bw/2 - 5, by - bh + 12);
-    ctx.lineTo(bx, by - bh - 10 - lvl * 5);
-    ctx.lineTo(bx + bw/2 + 5, by - bh + 12);
-    ctx.fill();
-    // Label
-    drawText(b.name, bx, by + 16, { size: 9, align: 'center', color: COLORS.uiText });
-    drawText(`Lv.${lvl+1}`, bx, by + 28, { size: 8, align: 'center', color: COLORS.uiTextDim });
-  }
-
-  // Draw NPCs near their buildings
-  for (const npc of NPCS) {
-    const bld = BUILDINGS.find(b => b.id === npc.location);
-    if (!bld) continue;
-    const nx = bld.x * canvas.width + (isMobile ? 35 : 45);
-    const ny = bld.y * (canvas.height - navH - 60) + 60 - 10;
-    ctx.save();
-    npc.draw(nx, ny, 22);
-    ctx.restore();
-    // Friendship indicator
-    const fr = village.npcFriendship[npc.id] || 0;
-    const hearts = fr >= 50 ? '💗💗💗' : fr >= 20 ? '💗💗' : fr > 0 ? '💗' : '';
-    if (hearts) drawText(hearts, nx, ny - 30, { size: 8, align: 'center' });
-  }
-
-  // HUD top bar
-  drawPanel(0, 0, canvas.width, 52, { radius: 0, alpha: 0.9 });
-  const fs = isMobile ? 10 : 12;
-  const seasonData = SEASONS[getSeasonKey()];
-  drawText(`${seasonData.icon} ${seasonData.name} ${village.day}일차`, 10, 8, { size: fs, color: COLORS.accentLight, font: 'bold' });
-  drawText(`${getTimeIcon()} ${getTimeName()}`, 10, 26, { size: fs, color: COLORS.uiText });
-  const w = WEATHER[currentWeatherKey];
-  drawText(`${w.icon} ${w.name}`, 10, 40, { size: fs - 1, color: COLORS.uiTextDim });
-
-  drawText(`💰 ${village.gold}`, cx - 30, 8, { size: fs, color: COLORS.gold });
-  drawText(`⚡ ${village.energy}/${getEnergyMax()}`, cx - 30, 26, { size: fs, color: '#f39c12' });
-  drawText(`🎒 ${village.inventory.length}/${getInvMax()}`, cx + 50, 8, { size: fs, color: COLORS.uiText });
-  if (run) drawText(`Lv.${run.level}`, cx + 50, 26, { size: fs, color: COLORS.xp });
-
-  drawParticles();
-  drawButtons(t);
-  drawBottomNav(t);
-}
-
-// ─── SCENE: NPC DIALOG ───
-function updateNpcDialog(dt) {
-  clearButtons();
-  if (!activeNpc) { gameState = 'village'; return; }
-
-  const cx = canvas.width / 2;
-  addButton('npc_close', cx + 80, canvas.height / 2 - 130, 30, 30, '✕', { fontSize: 14, color: '#555' });
-  addButton('npc_gift', cx - 130, canvas.height / 2 + 80, 120, 36, '🎁 선물하기', { color: '#27ae60' });
-  addButton('npc_quest', cx + 10, canvas.height / 2 + 80, 120, 36, '📋 퀘스트', { color: '#2980b9' });
-
-  const clicked = consumeClick();
-  if (clicked === 'npc_close' || clicked === '__none__') { gameState = 'village'; return; }
-  if (clicked === 'npc_gift') {
-    if (village.npcGifted[activeNpc.id]) return; // already gifted today
-    if (village.inventory.length === 0) return;
-    // Gift the first fish
-    const fish = village.inventory[0];
-    const friendGain = activeNpc.gifts[fish.rarity] || 1;
-    village.npcFriendship[activeNpc.id] = (village.npcFriendship[activeNpc.id] || 0) + friendGain;
-    village.npcGifted[activeNpc.id] = true;
-    village.inventory.splice(0, 1);
-    spawnParticles(cx, canvas.height / 2, '#e74c3c', 10, 20);
-    saveVillage();
-  }
-  if (clicked === 'npc_quest') {
-    const q = activeNpc.quest;
-    const alreadyActive = village.questsActive.find(a => a.id === q.id);
-    const alreadyDone = village.questsCompleted.includes(q.id);
-    if (!alreadyActive && !alreadyDone) {
-      village.questsActive.push({ ...q, progress: 0 });
-      saveVillage();
-    }
-  }
-}
-
-function drawNpcDialog(t) {
-  ctx.fillStyle = 'rgba(5,5,20,0.85)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  if (!activeNpc) return;
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  const panelW = isMobile ? canvas.width - 40 : 400;
-
-  drawPanel(cx - panelW/2, cy - 140, panelW, 280);
-
-  // NPC portrait
-  ctx.save();
-  activeNpc.draw(cx, cy - 80, 35);
-  ctx.restore();
-
-  drawText(`${activeNpc.icon} ${activeNpc.name}`, cx, cy - 35, { size: 16, align: 'center', color: activeNpc.color, font: 'bold' });
-  drawText(activeNpc.role, cx, cy - 15, { size: 11, align: 'center', color: COLORS.uiTextDim });
-
-  // Friendship
-  const fr = village.npcFriendship[activeNpc.id] || 0;
-  drawText(`호감도: ${'❤️'.repeat(Math.min(5, Math.floor(fr/10)))}${'🤍'.repeat(Math.max(0, 5 - Math.floor(fr/10)))} (${fr})`, cx, cy + 5, { size: 11, align: 'center', color: '#e74c3c' });
-
-  // Dialog
-  let dialog = activeNpc.greeting;
-  const dlgs = activeNpc.dialogs.filter(d => fr >= d.friendship);
-  if (dlgs.length > 0) {
-    const best = dlgs[dlgs.length - 1];
-    dialog = best.lines[Math.floor(t) % best.lines.length];
-  }
-  drawText(`"${dialog}"`, cx, cy + 30, { size: isMobile ? 12 : 13, align: 'center', color: COLORS.uiText });
-
-  // Quest status
-  const q = activeNpc.quest;
-  const active = village.questsActive.find(a => a.id === q.id);
-  const done = village.questsCompleted.includes(q.id);
-  if (done) {
-    drawText('✅ 퀘스트 완료!', cx, cy + 55, { size: 11, align: 'center', color: COLORS.xp });
-  } else if (active) {
-    drawText(`📋 ${q.desc} (${active.progress || 0}/${q.count})`, cx, cy + 55, { size: 11, align: 'center', color: COLORS.gold });
-  } else {
-    drawText(`📋 ${q.desc} — 보상: ${q.reward}G`, cx, cy + 55, { size: 11, align: 'center', color: COLORS.uiTextDim });
-  }
-
-  drawButtons(t);
-}
-
-// ─── SCENE: FISH MARKET ───
-let marketScroll = 0;
-function updateFishMarket(dt) {
-  clearButtons();
-  addButton('market_back', 30, 30, 120, 36, '← 마을로', { color: '#2d3436' });
-
-  const cx = canvas.width / 2;
-  if (village.inventory.length > 0) {
-    addButton('sell_all', cx - 70, 75, 140, 34, '💰 전부 판매', { color: '#e67e22' });
-    const maxShow = Math.min(village.inventory.length, 8);
-    for (let i = 0; i < maxShow; i++) {
-      const f = village.inventory[i];
-      const sellPrice = Math.floor(f.goldValue * getSellMulti());
-      addButton('sell_' + i, cx - 140, 125 + i * 42, 280, 38, `${RARITY[f.rarity].name} ${f.name} — ${sellPrice}G`, { fontSize: 12, color: RARITY[f.rarity].color });
+    const sx = npc.x * TS - camX;
+    const sy = npc.y * TS - camY;
+    if (sx > -TS && sx < canvas.width + TS && sy > -TS && sy < canvas.height + TS) {
+      drawSprite(npc.dir, npc.spriteRow, sx, sy);
+      // Name above
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(npc.name, sx + TS/2, sy - 4);
     }
   }
 
-  const clicked = consumeClick();
-  if (clicked === 'market_back') { gameState = 'village'; return; }
-  if (clicked === 'sell_all') {
-    const total = sellAllFish();
-    spawnParticles(cx, canvas.height / 2, COLORS.gold, 20, 30);
-  }
-  if (clicked && clicked.startsWith('sell_')) {
-    const idx = parseInt(clicked.split('_')[1]);
-    sellFish(idx);
-    spawnParticles(cx, 125 + idx * 42, COLORS.gold, 8, 15);
-  }
-}
+  // Draw player
+  const px = game.px * TS - camX;
+  const py = game.py * TS - camY;
+  const frame = Math.floor(t * 4) % 2;
+  drawSprite(game.dir * 2 + frame, 0, px, py);
 
-function drawFishMarket(t) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const cx = canvas.width / 2;
-
-  drawText('🏪 어시장', cx, 20, { size: 24, align: 'center', color: COLORS.accentLight, font: 'bold' });
-  drawText(`판매 보너스: x${getSellMulti().toFixed(1)} | 💰 ${village.gold}G`, cx, 52, { size: 12, align: 'center', color: COLORS.gold });
-
-  if (village.inventory.length === 0) {
-    drawText('소지품이 비어있습니다', cx, 200, { size: 14, align: 'center', color: COLORS.uiTextDim });
-  }
-
-  drawParticles();
-  drawButtons(t);
-  drawBottomNav(t);
-}
-
-// ─── SCENE: BUILDING UPGRADE ───
-function updateBuildingUpgrade(dt) {
-  clearButtons();
-  addButton('bld_back', 30, 30, 120, 36, '← 마을로', { color: '#2d3436' });
-
-  const bld = BUILDINGS.find(b => b.id === villageSubScreen);
-  if (!bld) { gameState = 'village'; return; }
-
-  const cx = canvas.width / 2;
-  const currentLvl = village.buildingLevels[bld.id];
-  const nextLvl = currentLvl + 1;
-  if (nextLvl < bld.levels.length) {
-    const next = bld.levels[nextLvl];
-    const canAfford = village.gold >= next.cost;
-    addButton('bld_upgrade', cx - 80, 250, 160, 42, `⬆️ 업그레이드 (${next.cost}G)`, { disabled: !canAfford, color: canAfford ? '#27ae60' : '#555' });
-  }
-
-  const clicked = consumeClick();
-  if (clicked === 'bld_back') { gameState = 'village'; return; }
-  if (clicked === 'bld_upgrade') {
-    const next = bld.levels[nextLvl];
-    if (village.gold >= next.cost) {
-      village.gold -= next.cost;
-      village.buildingLevels[bld.id] = nextLvl;
-      village.maxEnergy = getEnergyMax();
-      village.inventoryMax = getInvMax();
-      spawnParticles(cx, 200, '#f1c40f', 20, 40);
-      saveVillage();
-    }
+  // Interaction hint
+  const dx = [0,0,-1,1][game.dir];
+  const dy = [1,-1,0,0][game.dir];
+  const fx = game.px + dx, fy = game.py + dy;
+  let hasInteract = false;
+  for (const npc of NPCS) if (npc.x === fx && npc.y === fy) hasInteract = true;
+  for (const obj of OBJECTS) if (obj.x === fx && obj.y === fy && obj.interact) hasInteract = true;
+  const fg = GROUND[fy]?.[fx];
+  if (fg === 2 || fg === 4) hasInteract = true;
+  if (hasInteract) {
+    ctx.fillStyle = 'rgba(162,155,254,0.5)';
+    ctx.fillRect(fx * TS - camX + 4, fy * TS - camY + 4, TS - 8, TS - 8);
   }
 }
 
-function drawBuildingUpgrade(t) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const cx = canvas.width / 2;
-  const bld = BUILDINGS.find(b => b.id === villageSubScreen);
-  if (!bld) return;
+// ─── TITLE SCREEN ───
+document.getElementById('btn-new-game').addEventListener('click', () => {
+  game = defaultGame();
+  game.weather = pickWeather();
+  save();
+  updateHUD();
+  document.getElementById('title-screen').style.display = 'none';
+  screen = 'world';
+  showDialog('시스템', [
+    '🌊 어촌마을 "깊은바다"에 오신 것을 환영합니다!',
+    '이 마을에서 낚시를 하고, 물고기를 팔고, 마을 사람들과 친해지세요.',
+    '부두나 물가에서 상호작용(⚡ 버튼)하면 낚시를 할 수 있습니다.',
+    'NPC에게 다가가서 대화해보세요! 즐거운 어촌 생활을 시작합니다! 🎣'
+  ]);
+});
 
-  const currentLvl = village.buildingLevels[bld.id];
-  const current = bld.levels[currentLvl];
-
-  drawText(`${bld.icon} ${bld.name}`, cx, 40, { size: 26, align: 'center', color: COLORS.accentLight, font: 'bold' });
-  drawText(`현재: ${current.name} (Lv.${currentLvl + 1})`, cx, 80, { size: 14, align: 'center', color: COLORS.uiText });
-  drawText(current.desc, cx, 105, { size: 12, align: 'center', color: COLORS.uiTextDim });
-
-  const nextLvl = currentLvl + 1;
-  if (nextLvl < bld.levels.length) {
-    const next = bld.levels[nextLvl];
-    drawPanel(cx - 140, 140, 280, 90);
-    drawText(`다음 단계: ${next.name}`, cx, 155, { size: 14, align: 'center', color: COLORS.gold, font: 'bold' });
-    drawText(next.desc, cx, 180, { size: 12, align: 'center', color: COLORS.uiText });
-    drawText(`비용: ${next.cost}G | 보유: ${village.gold}G`, cx, 205, { size: 11, align: 'center', color: village.gold >= next.cost ? COLORS.xp : COLORS.hp });
-  } else {
-    drawText('✅ 최대 레벨 달성!', cx, 160, { size: 16, align: 'center', color: COLORS.xp });
-  }
-
-  drawParticles();
-  drawButtons(t);
-  drawBottomNav(t);
+const continueBtn = document.getElementById('btn-continue');
+if (localStorage.getItem('dc3_save')) {
+  continueBtn.style.display = 'inline-block';
 }
-
-// ─── SCENE: VILLAGE INVENTORY ───
-function updateVillageInv(dt) {
-  clearButtons();
-  addButton('vinv_back', 30, 30, 100, 36, '← 마을', { color: '#2d3436' });
-  const clicked = consumeClick();
-  if (clicked === 'vinv_back') { gameState = 'village'; return; }
-  const nav = handleNavClick();
-  if (nav && mouse.clicked) { mouse.clicked = false; gameState = nav; }
-}
-
-function drawVillageInv(t) {
-  ctx.fillStyle = COLORS.bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const cx = canvas.width / 2;
-  const navH = isMobile ? 56 : 50;
-
-  drawText('🎒 소지품', cx, 25, { size: 24, align: 'center', color: COLORS.accentLight, font: 'bold' });
-  drawText(`${village.inventory.length}/${getInvMax()}칸 사용중 | 💰 ${village.gold}G`, cx, 55, { size: 12, align: 'center', color: COLORS.uiTextDim });
-
-  if (village.inventory.length === 0) {
-    drawText('소지품이 비어있습니다', cx, 150, { size: 14, align: 'center', color: COLORS.uiTextDim });
-    drawText('낚시를 하여 물고기를 잡으세요!', cx, 175, { size: 12, align: 'center', color: COLORS.uiTextDim });
-  } else {
-    let y = 85;
-    const maxShow = Math.min(village.inventory.length, Math.floor((canvas.height - navH - 100) / 28));
-    for (let i = 0; i < maxShow; i++) {
-      const f = village.inventory[i];
-      const rd = RARITY[f.rarity];
-      drawText(`${rd.name}`, 30, y, { size: 11, color: rd.color });
-      drawText(`${f.name} (${f.size}cm)`, 80, y, { size: 11, color: COLORS.uiText });
-      drawText(`${f.goldValue}G`, canvas.width - 40, y, { size: 11, color: COLORS.gold, align: 'right' });
-      y += 28;
-    }
-    if (village.inventory.length > maxShow) {
-      drawText(`... 외 ${village.inventory.length - maxShow}마리`, 30, y, { size: 11, color: COLORS.uiTextDim });
-    }
+continueBtn.addEventListener('click', () => {
+  if (load()) {
+    updateHUD();
+    document.getElementById('title-screen').style.display = 'none';
+    screen = 'world';
   }
+});
 
-  // Show active quests
-  if (village.questsActive.length > 0) {
-    drawText('📋 진행 중인 퀘스트', cx, canvas.height - navH - 90, { size: 13, align: 'center', color: COLORS.gold, font: 'bold' });
-    let qy = canvas.height - navH - 70;
-    for (const q of village.questsActive) {
-      drawText(`• ${q.desc} (${q.progress || 0}/${q.count})`, cx, qy, { size: 11, align: 'center', color: COLORS.uiText });
-      qy += 20;
-    }
-  }
-
-  drawButtons(t);
-  drawBottomNav(t);
-}
-
-// ─── INTEGRATE VILLAGE INTO FISHING ───
-// Override the fish catch to add to village inventory
-const _origNavigateTo = typeof navigateTo !== 'undefined' ? null : null; // placeholder
-
-// ─── MAIN LOOP ───
+// ─── GAME LOOP ───
 let lastTime = 0;
-let gameTime = 0;
 function gameLoop(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
   lastTime = timestamp;
-  gameTime += dt;
 
-  // Clear
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Update & Draw
-  switch (gameState) {
-    case 'title':
-      updateTitle(dt, gameTime);
-      drawTitle(gameTime);
-      break;
-    case 'intro':
-      updateIntro(dt, gameTime);
-      drawIntro(gameTime);
-      break;
-    case 'char_select':
-      updateCharSelect(dt, gameTime);
-      drawCharSelect(gameTime);
-      break;
-    case 'traveling':
-      updateTraveling(dt, gameTime);
-      drawTraveling(gameTime);
-      break;
-    case 'codex':
-      updateCodex(dt);
-      drawCodex(gameTime);
-      break;
-    case 'travel_map':
-    case 'location_select':
-      updateLocationSelect(dt);
-      drawLocationSelect(gameTime);
-      break;
-    case 'fishing':
-      updateFishing(dt, gameTime);
-      drawFishing(gameTime);
-      break;
-    case 'minigame':
-      updateMinigame(dt, gameTime);
-      drawMinigame(gameTime);
-      break;
-    case 'perk_select':
-      updatePerkSelect(dt);
-      drawPerkSelect(gameTime);
-      break;
-    case 'inventory':
-      updateInventory(dt);
-      drawInventory(gameTime);
-      break;
-    case 'shop':
-      updateShop(dt);
-      drawShop(gameTime);
-      break;
-    case 'game_over':
-      updateGameOver(dt);
-      drawGameOver(gameTime);
-      break;
-    case 'village':
-      updateVillage(dt, gameTime);
-      drawVillage(gameTime);
-      break;
-    case 'npc_dialog':
-      updateNpcDialog(dt);
-      drawNpcDialog(gameTime);
-      break;
-    case 'fish_market':
-      updateFishMarket(dt);
-      drawFishMarket(gameTime);
-      break;
-    case 'building_upgrade':
-      updateBuildingUpgrade(dt);
-      drawBuildingUpgrade(gameTime);
-      break;
-    case 'village_inv':
-      updateVillageInv(dt);
-      drawVillageInv(gameTime);
-      break;
+  if (screen === 'world') {
+    updatePlayer(dt);
+    render(timestamp / 1000);
   }
 
-  updateParticles(dt);
+  if (fishingActive) {
+    updateFishing(dt);
+    drawFishing();
+  }
 
   requestAnimationFrame(gameLoop);
 }
-
 requestAnimationFrame(gameLoop);
+
 </script>
 </body>
 </html>
